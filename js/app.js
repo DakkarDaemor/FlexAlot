@@ -443,6 +443,25 @@
       document.body.removeChild(a); URL.revokeObjectURL(url);
     });
 
+    const importFile = document.getElementById('import-file');
+    document.getElementById('import-btn').addEventListener('click', () => importFile.click());
+    importFile.addEventListener('change', () => {
+      const file = importFile.files[0];
+      if (!file) return;
+      importFile.value = '';
+      const reader = new FileReader();
+      reader.onload = e => {
+        try {
+          Storage.importJSON(e.target.result);
+          renderArchive();
+          renderCalendar();
+        } catch {
+          alert('File non valido o formato non riconosciuto.');
+        }
+      };
+      reader.readAsText(file);
+    });
+
     if ('serviceWorker' in navigator)
       navigator.serviceWorker.register('sw.js').catch(() => {});
 

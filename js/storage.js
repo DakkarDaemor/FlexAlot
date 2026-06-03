@@ -41,5 +41,11 @@ const Storage = (() => {
 
   function exportJSON() { return JSON.stringify(load(), null, 2); }
 
-  return { load, getMonth, setDay, ensureMonth, closeMonth, getAllMonths, exportJSON };
+  function importJSON(jsonStr) {
+    const parsed = JSON.parse(jsonStr);
+    if (!parsed || typeof parsed.months !== 'object') throw new Error('Formato non valido');
+    save(parsed);
+  }
+
+  return { load, getMonth, setDay, ensureMonth, closeMonth, getAllMonths, exportJSON, importJSON };
 })();
