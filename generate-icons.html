@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html>
+<head><title>Genera Icone PWA</title></head>
+<body>
+<h2>Generazione icone PNG per PWA</h2>
+<canvas id="c192" width="192" height="192" style="margin:8px;border:1px solid #ccc"></canvas>
+<canvas id="c512" width="512" height="512" style="margin:8px;border:1px solid #ccc"></canvas>
+<br>
+<button onclick="generate()">Genera e Scarica Icone</button>
+<p id="status"></p>
+
+<script>
+function drawIcon(ctx, size) {
+  const r = size * 0.195;
+  // Background
+  ctx.fillStyle = '#4f46e5';
+  ctx.beginPath();
+  ctx.roundRect(0, 0, size, size, r);
+  ctx.fill();
+
+  const s = size / 512;
+
+  function rect(x, y, w, h, rx, color, alpha) {
+    ctx.globalAlpha = alpha ?? 1;
+    ctx.fillStyle = color;
+    ctx.beginPath();
+    ctx.roundRect(x*s, y*s, w*s, h*s, rx*s);
+    ctx.fill();
+    ctx.globalAlpha = 1;
+  }
+
+  // Calendar body outline
+  rect(130,120,252,272,24,'rgba(255,255,255,0.15)',1);
+  ctx.strokeStyle = 'white'; ctx.lineWidth = 18*s;
+  ctx.beginPath();
+  ctx.roundRect(130*s,120*s,252*s,272*s,24*s);
+  ctx.stroke();
+
+  // Rings
+  rect(186,88,36,64,18,'white',1);
+  rect(290,88,36,64,18,'white',1);
+
+  // Separator line
+  rect(130,208,252,18,0,'white',0.6);
+
+  // Day cells
+  rect(162,258,52,52,10,'white',0.9);
+  rect(230,258,52,52,10,'#a5b4fc',1);
+  rect(298,258,52,52,10,'#6ee7b7',1);
+  rect(162,326,52,36,8,'#6ee7b7',1);
+  rect(230,326,52,36,8,'white',0.9);
+  rect(298,326,52,36,8,'#a5b4fc',1);
+}
+
+function generate() {
+  ['192','512'].forEach(sz => {
+    const c = document.getElementById('c' + sz);
+    const ctx = c.getContext('2d');
+    drawIcon(ctx, parseInt(sz));
+    c.toBlob(blob => {
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = `icon-${sz}.png`;
+      a.click();
+    });
+  });
+  document.getElementById('status').textContent =
+    'Icone scaricate! Salva icon-192.png e icon-512.png nella cartella icons/';
+}
+
+// Auto-draw preview
+window.onload = () => {
+  ['192','512'].forEach(sz => {
+    const c = document.getElementById('c' + sz);
+    drawIcon(c.getContext('2d'), parseInt(sz));
+  });
+};
+</script>
+</body>
+</html>

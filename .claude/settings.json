@@ -1,0 +1,11 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(Get-ChildItem -Recurse \"d:\\\\__APP__\\\\FlexAlot\")",
+      "Bash(Select-Object FullName, Length)",
+      "Bash(Sort-Object FullName)",
+      "PowerShell(Get-ChildItem -Recurse \"d:\\\\__APP__\\\\FlexAlot\" | Where-Object { -not $_.PSIsContainer } | Select-Object FullName, Length | Sort-Object FullName | Format-Table -AutoSize)",
+      "Bash(del \"d:\\\\__APP__\\\\FlexAlot\\\\start-server.bat\")"
+    ]
+  }
+}
