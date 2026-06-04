@@ -49,11 +49,30 @@ body {
 .view { display: none; flex: 1; flex-direction: column; overflow: hidden; }
 .view.active { display: flex; }
 
+/* ── Title bar ───────────────────────────────────────────────────────────── */
+
+.title-bar {
+  height: 44px;
+  background: var(--primary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  padding-top: env(safe-area-inset-top, 0);
+}
+
+.title-bar-name {
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: #fff;
+  letter-spacing: 0.04em;
+}
+
 /* ── Header ──────────────────────────────────────────────────────────────── */
 
 .app-header {
   height: var(--header-h);
-  background: var(--primary);
+  background: #3730a3;
   color: #fff;
   display: flex;
   align-items: center;
