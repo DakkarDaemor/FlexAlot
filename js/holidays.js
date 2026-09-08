@@ -22,6 +22,12 @@ const Holidays = (() => {
   };
 
   const _cache = {};
+  let _custom = null; // { mmdd: 'MM-DD', name: string } — festa del patrono locale
+
+  function setCustom(mmdd, name) {
+    _custom = /^\d{2}-\d{2}$/.test(mmdd || '') ? { mmdd, name: name || 'Patrono' } : null;
+    for (const k of Object.keys(_cache)) delete _cache[k]; // invalida la cache
+  }
 
   function getHolidays(year) {
     if (_cache[year]) return _cache[year];
@@ -42,6 +48,12 @@ const Holidays = (() => {
     names[eStr] = 'Pasqua';
     names[eMonStr] = 'Pasquetta';
 
+    if (_custom) {
+      const ckey = `${year}-${_custom.mmdd}`;
+      set.add(ckey);
+      names[ckey] = _custom.name;
+    }
+
     set._names = names;
     _cache[year] = set;
     return set;
@@ -53,5 +65,5 @@ const Holidays = (() => {
     return (set._names && set._names[dateStr]) || 'Festività';
   }
 
-  return { getHolidays, getName };
+  return { getHolidays, getName, setCustom };
 })();

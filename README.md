@@ -4,15 +4,17 @@ PWA mobile-first per tenere traccia delle ore di ufficio e smart working mese pe
 
 ## Funzionalità
 
-- **Calendario mensile** — visualizza ogni giorno lavorativo con il relativo tipo (ufficio, flex, ferie, festivo)
-- **Smart working (Flex)** — registra le ore lavorate da remoto con step da 0,5h
+- **Calendario mensile** — visualizza ogni giorno lavorativo con il relativo tipo (ufficio, flex, ferie, festivo, malattia, congedo)
+- **Smart working (Flex)** — registra le ore lavorate da remoto con step da 0,5h; il default è 4h la prima volta, poi ricorda l'ultimo valore usato
 - **ROL** — tiene conto delle ore di permesso orario
-- **Ferie e festivi** — giorni di ferie e festività aziendali distinti dai giorni lavorativi
-- **Festività nazionali italiane** — escluse automaticamente dal conteggio
-- **Stats bar mensile** — totale ore lavorate, % ufficio, % flex, con avviso se il flex supera il 40%
+- **Assenze** — ferie, festività aziendali, malattia e congedo, distinte dai giorni lavorativi
+- **Festività nazionali italiane** — escluse automaticamente dal conteggio; opzionale la festa del patrono locale
+- **Stats bar mensile** — totale ore lavorate, % ufficio, % flex, con avviso oltre la soglia configurabile
+- **Impostazioni** — ore/giorno, soglia allerta flex, cap ROL, inizio settimana, tema (auto/chiaro/scuro), patrono
+- **Tema chiaro e scuro** — segue il sistema o forzabile dalle impostazioni
 - **Archivio** — storico di tutti i mesi passati con riepilogo statistiche
-- **Esporta / Importa JSON** — backup e ripristino dei dati in un clic
-- **Sync opzionale tra dispositivi** — via Firebase + passphrase, senza account (vedi sotto); disattivata di default
+- **Esporta / Importa JSON** ed **esporta .ics** — backup dei dati e calendario importabile in Google/Apple Calendar
+- **Sync opzionale tra dispositivi** — via Firebase + passphrase, senza account (vedi sotto); merge mese per mese, disattivata di default
 - **Offline-first** — service worker incluso, funziona senza connessione
 - **Installabile** — manifest PWA, aggiungibile alla home screen su Android e iOS
 
@@ -49,24 +51,29 @@ flexalot/
 ├── css/
 │   └── styles.css      # Stili (design system, modal, calendario)
 ├── js/
-│   ├── app.js          # Logica principale: rendering, modal, navigazione, sync
-│   ├── storage.js      # CRUD su localStorage (chiave: flexalot_v1)
+│   ├── config.js       # Preferenze locali del dispositivo (contratto, tema, patrono)
+│   ├── app.js          # Logica principale: rendering, modal, navigazione, impostazioni, export
+│   ├── storage.js      # CRUD + merge su localStorage (chiave: flexalot_v1)
 │   ├── sync.js         # Sincronizzazione cloud opzionale (Firebase, ES module)
-│   └── holidays.js     # Festività nazionali italiane per anno
+│   └── holidays.js     # Festività nazionali italiane per anno (+ patrono)
 └── icons/
-    └── icon.svg        # Icona app
+    ├── icon.svg        # Icona app
+    ├── icon-192.png    # Icona PWA (maskable)
+    └── icon-512.png    # Icona PWA (maskable)
 ```
 
 ## Come funziona
 
-I dati vengono salvati in `localStorage` con la chiave `flexalot_v1`. La struttura è:
+I **dati del calendario** stanno in `localStorage` alla chiave `flexalot_v1`:
 
 ```json
 {
+  "version": 2,
   "months": {
     "2025-06": {
       "closed": true,
       "closedAt": "2025-07-01T...",
+      "updatedAt": 1751328000000,
       "days": {
         "2025-06-10": { "type": "flex", "flexH": 4, "rol": 0 },
         "2025-06-20": { "type": "ferie", "flexH": 0, "rol": 0 }
@@ -76,7 +83,14 @@ I dati vengono salvati in `localStorage` con la chiave `flexalot_v1`. La struttu
 }
 ```
 
+`type` può essere `office` (implicito), `flex`, `ferie`, `festivo`, `malattia`, `congedo`.
+`updatedAt` per mese serve al merge della sincronizzazione (vince il più recente).
 I mesi passati vengono chiusi automaticamente all'apertura dell'app.
+
+Le **preferenze** (ore/giorno, soglia flex, cap ROL, inizio settimana, tema, patrono,
+ultimo valore Flex usato) stanno in chiavi separate (`flexalot_config_v1`,
+`flexalot_last_flexH`): sono per-dispositivo e **non** vengono sincronizzate, così
+ogni persona tiene le proprie. Si modificano dall'icona ingranaggio in alto a sinistra.
 
 ## Sincronizzare i dati tra più dispositivi
 
@@ -86,10 +100,12 @@ scegli viene trasformata in un hash SHA-256 e usata come "etichetta" del tuo
 documento su Firestore. Chi conosce la passphrase vede quei dati; non c'è verifica
 d'identità né recupero password. Adatta a dati non sensibili come questo tracker.
 
-La strategia di merge è *last-write-wins* sull'intero documento (`{ months: {...} }`):
-al collegamento, se il profilo cloud è vuoto vengono caricati i dati locali,
-altrimenti quelli cloud sostituiscono quelli locali sul dispositivo. Da lì ogni
-salvataggio viene propagato anche al cloud (in locale funziona comunque offline).
+Il merge avviene **mese per mese**: per ogni mese vince la versione con
+`updatedAt` più recente. Al collegamento i dati locali e quelli cloud vengono
+uniti (nessuno dei due sovrascrive ciecamente l'altro), poi il risultato è
+ripropagato al cloud. Da lì ogni salvataggio viene inviato al cloud con un
+piccolo ritardo (debounce ~1,5s); in locale funziona comunque offline e la
+data dell'ultimo salvataggio cloud è mostrata nel pannello di sincronizzazione.
 
 ### 1. Crea il progetto Firebase (una volta sola)
 
@@ -120,15 +136,17 @@ salvataggio viene propagato anche al cloud (in locale funziona comunque offline)
 ### 2. Collega l'app a quel progetto
 
 Apri `js/sync.js` e sostituisci i valori segnaposto `YOUR_...` in `firebaseConfig`
-con quelli copiati. Aumenta `CACHE` in `sw.js` (es. `flexalot-v10` → `v11`) e
-ricarica i file sul repo.
+con quelli copiati. Ogni volta che modifichi un file elencato in `ASSETS` dentro
+`sw.js`, aumenta `CACHE` (es. `flexalot-v14` → `v15`) e ricarica i file sul repo,
+altrimenti il service worker continua a servire la versione vecchia.
 
 ### 3. Attiva la sincronizzazione
 
-Nell'app, tocca l'icona ⟳ nella barra del titolo → inserisci una passphrase →
+Nell'app, tocca l'icona ⟳ in alto a destra → inserisci una passphrase →
 "Sincronizza". Ripeti la stessa passphrase sugli altri dispositivi. Per tornare al
 solo locale su un dispositivo: stessa icona → "Disconnetti (solo locale)" (i dati
-sul cloud restano intatti). Un pallino verde sull'icona indica che la sync è attiva.
+sul cloud restano intatti). Il pallino sull'icona indica lo stato: verde = attiva,
+lampeggiante = salvataggio in corso, rosso = ultimo salvataggio non riuscito.
 
 ## Licenza
 

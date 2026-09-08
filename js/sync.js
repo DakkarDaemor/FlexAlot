@@ -14,6 +14,7 @@ const firebaseConfig = {
 };
 
 var PROFILE_HASH_KEY = "flexalot_profile_hash_v1";
+var LAST_PUSH_KEY = "flexalot_sync_last";
 var COLLECTION = "flexalot_profiles";
 
 var configured = !!firebaseConfig.apiKey && firebaseConfig.apiKey.indexOf("YOUR_") !== 0;
@@ -24,6 +25,15 @@ if (configured) {
   } catch (e) {
     configured = false;
   }
+}
+
+var _state = "idle"; // idle | busy | error
+
+function setState(s) {
+  _state = s;
+  try {
+    window.dispatchEvent(new CustomEvent("flexalot-sync", { detail: { state: s } }));
+  } catch (e) {}
 }
 
 async function sha256Hex(text) {
@@ -38,6 +48,11 @@ function getProfileHash() {
 }
 
 function normalize(data) {
+  try {
+    if (typeof Storage !== "undefined" && Storage && typeof Storage.normalize === "function") {
+      return Storage.normalize(data);
+    }
+  } catch (e) {}
   return data && typeof data.months === "object" && data.months !== null
     ? data
     : { months: {} };
@@ -46,6 +61,11 @@ function normalize(data) {
 window.FlexAlotSync = {
   isConfigured: function () { return configured; },
   isConnected: function () { return !!getProfileHash(); },
+  state: function () { return _state; },
+  lastPush: function () {
+    var v = parseInt(localStorage.getItem(LAST_PUSH_KEY), 10);
+    return v > 0 ? v : null;
+  },
 
   // Collega questo dispositivo a un profilo cloud identificato dalla passphrase
   // (hashata con SHA-256, mai inviata in chiaro) e restituisce i dati già
@@ -58,28 +78,40 @@ window.FlexAlotSync = {
 
   disconnect: function () {
     localStorage.removeItem(PROFILE_HASH_KEY);
+    localStorage.removeItem(LAST_PUSH_KEY);
+    setState("idle");
   },
 
   pull: async function () {
     var hash = getProfileHash();
     if (!hash || !configured) return null;
-    var snap = await getDoc(doc(db, COLLECTION, hash));
-    if (!snap.exists()) return null;
-    var payload = snap.data();
-    return normalize(payload.data);
+    setState("busy");
+    try {
+      var snap = await getDoc(doc(db, COLLECTION, hash));
+      setState("idle");
+      if (!snap.exists()) return null;
+      return normalize(snap.data().data);
+    } catch (e) {
+      setState("error");
+      throw e;
+    }
   },
 
   push: async function (data) {
     var hash = getProfileHash();
     if (!hash || !configured) return;
+    setState("busy");
     try {
       await setDoc(doc(db, COLLECTION, hash), {
         data: normalize(data),
         updatedAt: Date.now()
       });
+      try { localStorage.setItem(LAST_PUSH_KEY, String(Date.now())); } catch (e) {}
+      setState("idle");
     } catch (e) {
       // offline o errore di rete: i dati restano salvati in locale e verranno
       // ripropagati al prossimo salvataggio andato a buon fine
+      setState("error");
     }
   }
 };

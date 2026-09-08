@@ -1,9 +1,9 @@
 (() => {
-  const WORK_H = 8;
   const MONTHS = ['Gennaio','Febbraio','Marzo','Aprile','Maggio','Giugno',
                   'Luglio','Agosto','Settembre','Ottobre','Novembre','Dicembre'];
-  const WDAYS_SHORT = ['Lun','Mar','Mer','Gio','Ven','Sab','Dom'];
-  const WDAYS_FULL  = ['lunedì','martedì','mercoledì','giovedì','venerdì','sabato','domenica'];
+  // Indicizzati per getDay(): 0 = domenica … 6 = sabato
+  const WDAYS_SHORT = ['Dom','Lun','Mar','Mer','Gio','Ven','Sab'];
+  const WDAYS_FULL  = ['domenica','lunedì','martedì','mercoledì','giovedì','venerdì','sabato'];
 
   const now = new Date();
   const state = {
@@ -12,23 +12,29 @@
     view: 'calendar'
   };
 
-  // Default ore Flex: 4h alla prima volta, poi l'ultimo valore salvato — così
-  // si adatta all'abitudine di chi usa l'app. È una preferenza locale di UI,
-  // non un dato del calendario: non passa da Storage né dalla sync.
+  // ── Parametri del contratto (da Impostazioni) ─────────────────────────────
+
+  const workH         = () => Config.get('workH');
+  const rolCap        = () => Config.get('rolCap');
+  const flexThreshold = () => Config.get('flexThreshold');
+  const weekStart     = () => (Config.get('weekStart') === 0 ? 0 : 1);
+
+  // Default ore Flex: il valore da Impostazioni la prima volta, poi l'ultimo
+  // salvato — così si adatta all'abitudine di chi usa l'app. Preferenza locale
+  // di UI: non passa da Storage né dalla sync.
   const LAST_FLEX_KEY = 'flexalot_last_flexH';
-  const DEFAULT_FLEX_H = 4;
 
   function rememberedFlexH() {
     try {
       const v = parseFloat(localStorage.getItem(LAST_FLEX_KEY));
-      if (v > 0 && v <= WORK_H) return v;
+      if (v > 0 && v <= workH()) return v;
     } catch {}
-    return DEFAULT_FLEX_H;
+    return Math.min(Config.get('defaultFlexH'), workH());
   }
 
   function rememberFlexH(h) {
     try {
-      if (h > 0 && h <= WORK_H) localStorage.setItem(LAST_FLEX_KEY, String(h));
+      if (h > 0 && h <= workH()) localStorage.setItem(LAST_FLEX_KEY, String(h));
     } catch {}
   }
 
@@ -40,8 +46,9 @@
 
   function daysInMonth(y, m) { return new Date(y, m, 0).getDate(); }
 
-  function firstDow(y, m) {          // 0=Mon … 6=Sun (empty leading cells)
-    return (new Date(y, m - 1, 1).getDay() + 6) % 7;
+  // Celle vuote iniziali, in base al giorno di inizio settimana configurato
+  function firstDow(y, m) {
+    return (new Date(y, m - 1, 1).getDay() - weekStart() + 7) % 7;
   }
 
   function dow(y, m, d) { return new Date(y, m - 1, d).getDay(); } // 0=Sun
@@ -51,7 +58,6 @@
   const isToday       = (y,m,d) => { const t=new Date(); return t.getFullYear()===y&&t.getMonth()+1===m&&t.getDate()===d; };
   const isPast        = (y,m,d) => new Date(y,m-1,d) <= TODAY;
   const isCurMonth    = (y,m)   => { const t=new Date(); return t.getFullYear()===y&&t.getMonth()+1===m; };
-  const isPastMonth   = (y,m)   => { const t=new Date(); return y<t.getFullYear()||(y===t.getFullYear()&&m<t.getMonth()+1); };
 
   function formatH(h) {
     if (!h) return '0h';
@@ -62,18 +68,20 @@
   // ── Stats computation ──────────────────────────────────────────────────────
 
   function computeStats(y, m) {
+    const WORK_H = workH();
     const data = Storage.getMonth(ym(y, m));
     const hols = Holidays.getHolidays(y);
     const days = daysInMonth(y, m);
-    let offH=0, flexH=0, rolH=0, ferieDays=0, festivoDays=0, budgetH=0;
+    let offH=0, flexH=0, rolH=0, budgetH=0;
+    let ferieDays=0, festivoDays=0, malattiaDays=0, congedoDays=0;
 
     for (let d = 1; d <= days; d++) {
       const w = dow(y, m, d);
       if (w === 0 || w === 6) continue;                     // weekend
       const key = ds(y, m, d);
-      if (hols.has(key)) continue;                          // national holiday
+      if (hols.has(key)) continue;                          // festività nazionale / patrono
 
-      budgetH += WORK_H;                                    // budget = tutti i gg lavorativi × 8h
+      budgetH += WORK_H;                                    // budget = tutti i gg lavorativi × ore/giorno
 
       const dd = data.days[key];
       if (!dd) { offH += WORK_H; continue; }                // ufficio implicito
@@ -81,8 +89,10 @@
       const type = dd.type;
       const rol  = parseFloat(dd.rol) || 0;
 
-      if      (type === 'ferie')   { ferieDays++; }
-      else if (type === 'festivo') { festivoDays++; }
+      if      (type === 'ferie')    { ferieDays++; }
+      else if (type === 'festivo')  { festivoDays++; }
+      else if (type === 'malattia') { malattiaDays++; }
+      else if (type === 'congedo')  { congedoDays++; }
       else {
         // flexH: nuovo campo esplicito; fallback backward-compat per vecchi dati type='flex'
         const fh = dd.flexH != null ? parseFloat(dd.flexH) : (type === 'flex' ? Math.max(0, WORK_H - rol) : 0);
@@ -95,23 +105,26 @@
     const total   = offH + flexH;
     const flexPct = total > 0 ? Math.round(flexH / total * 100) : 0;
     const offPct  = total > 0 ? Math.round(offH  / total * 100) : 0;
-    return { offH, flexH, total, flexPct, offPct, rolH, ferieDays, festivoDays, budgetH };
+    return { offH, flexH, total, flexPct, offPct, rolH, budgetH,
+             ferieDays, festivoDays, malattiaDays, congedoDays };
   }
 
   // ── Stats bar ──────────────────────────────────────────────────────────────
 
   function renderStats() {
     const s = computeStats(state.year, state.month);
-    const fd = s.flexPct > 40;
+    const fd = s.flexPct > flexThreshold();
 
     // Percentuale del lavorato rispetto al monte ore disponibile
     const donePct = s.budgetH > 0 ? Math.round(s.total / s.budgetH * 100) : 0;
 
     // Chip secondari: solo quelli > 0
     const chips = [];
-    if (s.ferieDays  > 0) chips.push(`<span class="sec-chip chip-ferie">🌴 ${s.ferieDays}g ferie</span>`);
-    if (s.rolH       > 0) chips.push(`<span class="sec-chip chip-rol">⏱ ROL ${formatH(s.rolH)}</span>`);
-    if (s.festivoDays> 0) chips.push(`<span class="sec-chip chip-fest">🎉 ${s.festivoDays}g festivi</span>`);
+    if (s.ferieDays   > 0) chips.push(`<span class="sec-chip chip-ferie">🌴 ${s.ferieDays}g ferie</span>`);
+    if (s.rolH        > 0) chips.push(`<span class="sec-chip chip-rol">⏱ ROL ${formatH(s.rolH)}</span>`);
+    if (s.festivoDays > 0) chips.push(`<span class="sec-chip chip-fest">🎉 ${s.festivoDays}g festivi</span>`);
+    if (s.malattiaDays> 0) chips.push(`<span class="sec-chip chip-mal">🤒 ${s.malattiaDays}g malattia</span>`);
+    if (s.congedoDays > 0) chips.push(`<span class="sec-chip chip-con">👶 ${s.congedoDays}g congedo</span>`);
 
     document.getElementById('stats-bar').innerHTML = `
       <div class="stats-main">
@@ -140,8 +153,23 @@
 
   // ── Calendar ───────────────────────────────────────────────────────────────
 
+  function renderWeekdayHeaders() {
+    const start = weekStart();
+    const el = document.querySelector('.weekday-headers');
+    if (!el) return;
+    el.innerHTML = '';
+    for (let i = 0; i < 7; i++) {
+      const wd = (start + i) % 7;                 // 0=Dom … 6=Sab
+      const div = document.createElement('div');
+      div.className = 'wday' + (wd === 0 || wd === 6 ? ' we' : '');
+      div.textContent = WDAYS_SHORT[wd];
+      el.appendChild(div);
+    }
+  }
+
   function renderCalendar() {
     const { year: y, month: m } = state;
+    renderWeekdayHeaders();
     document.getElementById('month-title').textContent = `${MONTHS[m-1]} ${y}`;
 
     const data = Storage.getMonth(ym(y, m));
@@ -191,10 +219,12 @@
         const rol  = dd ? (parseFloat(dd.rol)||0) : 0;
 
         const badges = [];
-        if (type === 'flex')    badges.push(['Flex',  'flex']);
-        if (type === 'ferie')   badges.push(['Ferie', 'ferie']);
-        if (type === 'festivo') badges.push(['Fest',  'festivo']);
-        if (rol  > 0)           badges.push(['ROL',   'rol']);
+        if (type === 'flex')     badges.push(['Flex',  'flex']);
+        if (type === 'ferie')    badges.push(['Ferie', 'ferie']);
+        if (type === 'festivo')  badges.push(['Fest',  'festivo']);
+        if (type === 'malattia') badges.push(['Mal',   'malattia']);
+        if (type === 'congedo')  badges.push(['Cong',  'congedo']);
+        if (rol  > 0)            badges.push(['ROL',   'rol']);
 
         if (badges.length > 0) {
           const wrap = document.createElement('div');
@@ -224,22 +254,25 @@
   let _flexVal  = 0;
   let _rolVal   = 0;
 
+  // Tipi "assenza": esclusivi con tutto il resto, senza ore da imputare.
+  const ABSENCE_TYPES = ['ferie', 'festivo', 'malattia', 'congedo'];
+
   function openModal(key, y, m, d, readOnly) {
     _editKey = readOnly ? null : key;
     const w = dow(y, m, d);
-    const dayNameIdx = (w + 6) % 7;
     document.getElementById('modal-title').textContent =
-      `${WDAYS_FULL[dayNameIdx]} ${d} ${MONTHS[m-1].toLowerCase()} ${y}`;
+      `${WDAYS_FULL[w]} ${d} ${MONTHS[m-1].toLowerCase()} ${y}`;
 
     const body = document.getElementById('modal-body');
     const saveBtn = document.getElementById('modal-save');
 
     if (readOnly) {
-      const hols = Holidays.getHolidays(y);
       let info = w===0||w===6 ? (w===6?'Sabato':'Domenica') : Holidays.getName(key);
       body.innerHTML = `<div class="modal-info-box"><div class="info-icon">📅</div><div class="info-text">${info}</div></div>`;
       saveBtn.style.display = 'none';
     } else {
+      const WORK_H  = workH();
+      const ROL_CAP = rolCap();
       saveBtn.style.display = '';
       const mData = Storage.getMonth(`${y}-${pad(m)}`);
       const dd    = mData.days[key];
@@ -250,20 +283,21 @@
       _flexVal = dd && dd.flexH != null
         ? Math.min(parseFloat(dd.flexH), WORK_H)
         : (type === 'flex' ? Math.max(0, WORK_H - rol) : 0);
-      _rolVal  = Math.min(rol, 7.5);
+      _rolVal  = Math.min(rol, ROL_CAP);
 
-      const flexSel    = _flexVal > 0;
-      const rolSel     = _rolVal > 0;
-      const ferieSel   = type === 'ferie';
-      const festivoSel = type === 'festivo';
+      const flexSel = _flexVal > 0;
+      const rolSel  = _rolVal > 0;
+      const sel = t => (type === t ? ' sel' : '');
 
       body.innerHTML = `
         <p class="modal-section-label">Tipo giornata</p>
         <div class="type-grid">
-          <button class="type-btn${flexSel?' sel':''}"    data-t="flex">🏠 Flex</button>
-          <button class="type-btn${rolSel?' sel':''}"     data-t="rol">⏱ ROL</button>
-          <button class="type-btn${ferieSel?' sel':''}"   data-t="ferie">🌴 Ferie</button>
-          <button class="type-btn${festivoSel?' sel':''}" data-t="festivo">🎉 Festivo</button>
+          <button class="type-btn${flexSel?' sel':''}"     data-t="flex">🏠 Flex</button>
+          <button class="type-btn${rolSel?' sel':''}"      data-t="rol">⏱ ROL</button>
+          <button class="type-btn${sel('ferie')}"          data-t="ferie">🌴 Ferie</button>
+          <button class="type-btn${sel('festivo')}"        data-t="festivo">🎉 Festivo</button>
+          <button class="type-btn${sel('malattia')}"       data-t="malattia">🤒 Malattia</button>
+          <button class="type-btn${sel('congedo')}"        data-t="congedo">👶 Congedo</button>
         </div>
         <div id="flex-wrap" class="rol-wrap"${flexSel?'':' style="display:none"'}>
           <p class="modal-section-label">Ore smart working</p>
@@ -278,7 +312,7 @@
           <div class="rol-stepper">
             <button class="step-btn" id="rol-minus"${_rolVal<=0.5?' disabled':''}>−</button>
             <span class="step-val" id="rol-val">${_rolVal>0?formatH(_rolVal):'—'}</span>
-            <button class="step-btn" id="rol-plus"${_rolVal>=7.5?' disabled':''}>+</button>
+            <button class="step-btn" id="rol-plus"${_rolVal>=ROL_CAP?' disabled':''}>+</button>
           </div>
         </div>`;
 
@@ -290,7 +324,7 @@
       const updateRolStepper = () => {
         document.getElementById('rol-val').textContent   = _rolVal > 0 ? formatH(_rolVal) : '—';
         document.getElementById('rol-minus').disabled    = _rolVal <= 0.5;
-        document.getElementById('rol-plus').disabled     = _rolVal >= 7.5;
+        document.getElementById('rol-plus').disabled     = _rolVal >= ROL_CAP;
       };
 
       document.getElementById('flex-minus').addEventListener('click', () => {
@@ -306,7 +340,7 @@
         updateRolStepper();
       });
       document.getElementById('rol-plus').addEventListener('click', () => {
-        _rolVal = Math.min(7.5, Math.round((_rolVal + 0.5) * 2) / 2);
+        _rolVal = Math.min(ROL_CAP, Math.round((_rolVal + 0.5) * 2) / 2);
         updateRolStepper();
       });
 
@@ -314,21 +348,21 @@
         btn.addEventListener('click', () => {
           const t = btn.dataset.t;
           const wasSelected = btn.classList.contains('sel');
-          if (t === 'ferie' || t === 'festivo') {
+          if (ABSENCE_TYPES.includes(t)) {
             body.querySelectorAll('.type-btn').forEach(b => b.classList.remove('sel'));
             if (!wasSelected) btn.classList.add('sel');
             document.getElementById('flex-wrap').style.display = 'none';
             document.getElementById('rol-wrap').style.display  = 'none';
           } else {
-            body.querySelectorAll('.type-btn[data-t="ferie"],.type-btn[data-t="festivo"]')
-                .forEach(b => b.classList.remove('sel'));
+            body.querySelectorAll('.type-btn')
+                .forEach(b => { if (ABSENCE_TYPES.includes(b.dataset.t)) b.classList.remove('sel'); });
             const nowOn = !wasSelected;
             btn.classList.toggle('sel', nowOn);
             if (t === 'flex') {
               if (nowOn && _flexVal <= 0) { _flexVal = rememberedFlexH(); updateFlexStepper(); }
               document.getElementById('flex-wrap').style.display = nowOn ? '' : 'none';
             } else {
-              if (nowOn && _rolVal <= 0)  { _rolVal  = 4; updateRolStepper(); }
+              if (nowOn && _rolVal <= 0)  { _rolVal = Math.min(4, ROL_CAP); updateRolStepper(); }
               document.getElementById('rol-wrap').style.display  = nowOn ? '' : 'none';
             }
           }
@@ -346,14 +380,15 @@
 
   function saveModal() {
     if (!_editKey) return;
-    const flexBtnSel = !!document.querySelector('#modal-body .type-btn[data-t="flex"].sel');
-    const rolBtnSel  = !!document.querySelector('#modal-body .type-btn[data-t="rol"].sel');
-    const ferieSel   = !!document.querySelector('#modal-body .type-btn[data-t="ferie"].sel');
-    const festivoSel = !!document.querySelector('#modal-body .type-btn[data-t="festivo"].sel');
+    const q = t => !!document.querySelector(`#modal-body .type-btn[data-t="${t}"].sel`);
+    const flexBtnSel = q('flex');
+    const rolBtnSel  = q('rol');
+    const absence    = ABSENCE_TYPES.find(q);
+
     let type, flexH, rol;
-    if      (ferieSel)   { type = 'ferie';   flexH = 0; rol = 0; }
-    else if (festivoSel) { type = 'festivo'; flexH = 0; rol = 0; }
-    else {
+    if (absence) {
+      type = absence; flexH = 0; rol = 0;
+    } else {
       type  = flexBtnSel ? 'flex' : 'office';
       flexH = flexBtnSel ? _flexVal : 0;
       rol   = rolBtnSel  ? _rolVal  : 0;
@@ -387,7 +422,7 @@
     list.innerHTML = months.map(([ymStr, mData]) => {
       const [y, m] = ymStr.split('-').map(Number);
       const s = computeStats(y, m);
-      const fd = s.flexPct > 40;
+      const fd = s.flexPct > flexThreshold();
       const label = `${MONTHS[m-1]} ${y}`;
       const badge = mData.closed
         ? '<span class="arch-badge closed">Chiuso</span>'
@@ -416,6 +451,8 @@
           </div>
           ${s.ferieDays>0?`<div class="arch-stat"><span class="arch-val">${s.ferieDays}g</span><span class="arch-lbl">Ferie</span></div>`:''}
           ${s.rolH>0?`<div class="arch-stat"><span class="arch-val">${formatH(s.rolH)}</span><span class="arch-lbl">ROL</span></div>`:''}
+          ${s.malattiaDays>0?`<div class="arch-stat"><span class="arch-val">${s.malattiaDays}g</span><span class="arch-lbl">Malattia</span></div>`:''}
+          ${s.congedoDays>0?`<div class="arch-stat"><span class="arch-val">${s.congedoDays}g</span><span class="arch-lbl">Congedo</span></div>`:''}
         </div>
       </div>`;
     }).join('');
@@ -436,19 +473,55 @@
   const sync = () => window.FlexAlotSync;
 
   function renderSyncState() {
+    const dot = document.getElementById('sync-dot');
     const on = !!(sync() && sync().isConnected());
-    document.getElementById('sync-dot').hidden = !on;
+    dot.hidden = !on;
+    const st = on && sync() ? sync().state() : 'idle';
+    dot.classList.toggle('syncing', st === 'busy');
+    dot.classList.toggle('error', st === 'error');
+    if (!document.getElementById('sync-overlay').classList.contains('open')) return;
+    refreshSyncHint();
   }
 
-  function applyCloudData(data) {
-    Storage.importJSON(JSON.stringify(data));
+  function fmtWhen(ts) {
+    if (!ts) return '';
+    const d = new Date(ts), n = new Date();
+    const time = `${pad(d.getHours())}:${pad(d.getMinutes())}`;
+    const sameDay = d.toDateString() === n.toDateString();
+    return sameDay ? `oggi ${time}` : `${pad(d.getDate())}/${pad(d.getMonth()+1)} ${time}`;
+  }
+
+  function refreshSyncHint() {
+    const hint = document.getElementById('sync-hint');
+    if (!sync() || !sync().isConfigured()) {
+      hint.textContent = 'Sincronizzazione non configurata in questa installazione.';
+      return;
+    }
+    if (!sync().isConnected()) {
+      hint.textContent = 'Nessuna sincronizzazione attiva: i dati restano solo su questo dispositivo.';
+      return;
+    }
+    const st = sync().state();
+    if (st === 'busy')  { hint.textContent = 'Sincronizzazione in corso…'; return; }
+    if (st === 'error') { hint.textContent = 'Ultimo salvataggio cloud non riuscito (offline?). Riprova al prossimo salvataggio.'; return; }
+    const last = sync().lastPush();
+    hint.textContent = last
+      ? `Sincronizzazione attiva. Ultimo salvataggio cloud: ${fmtWhen(last)}.`
+      : 'Sincronizzazione attiva su questo dispositivo.';
+  }
+
+  // Fonde i dati cloud con quelli locali mese per mese (vince l'updatedAt più
+  // recente), poi ripropaga il risultato al cloud.
+  function applyCloudData(cloud) {
+    const merged = Storage.merge(Storage.load(), cloud);
+    Storage.save(merged);
     autoClose();
     renderCalendar();
     if (state.view === 'archive') renderArchive();
   }
 
   // All'avvio: se il dispositivo è già collegato a un profilo cloud, allinea i
-  // dati locali con quelli remoti (last-write-wins sull'intero documento).
+  // dati locali con quelli remoti.
   async function syncBootstrap() {
     renderSyncState();
     if (!sync() || !sync().isConfigured() || !sync().isConnected()) return;
@@ -462,30 +535,14 @@
   }
 
   function openSyncModal() {
-    const overlay = document.getElementById('sync-overlay');
-    const hint = document.getElementById('sync-hint');
-    const disconnectBtn = document.getElementById('sync-disconnect');
-    const connectBtn = document.getElementById('sync-connect');
-    const input = document.getElementById('sync-pass');
-
-    input.value = '';
-
-    if (!sync() || !sync().isConfigured()) {
-      hint.textContent = 'Sincronizzazione non configurata in questa installazione.';
-      connectBtn.disabled = true;
-      input.disabled = true;
-      disconnectBtn.hidden = true;
-    } else {
-      connectBtn.disabled = false;
-      input.disabled = false;
-      const connected = sync().isConnected();
-      hint.textContent = connected
-        ? 'Sincronizzazione attiva su questo dispositivo.'
-        : 'Nessuna sincronizzazione attiva: i dati restano solo su questo dispositivo.';
-      disconnectBtn.hidden = !connected;
-    }
-
-    overlay.classList.add('open');
+    document.getElementById('sync-pass').value = '';
+    const configured = !!(sync() && sync().isConfigured());
+    const connected = configured && sync().isConnected();
+    document.getElementById('sync-connect').disabled = !configured;
+    document.getElementById('sync-pass').disabled = !configured;
+    document.getElementById('sync-disconnect').hidden = !connected;
+    document.getElementById('sync-overlay').classList.add('open');
+    refreshSyncHint();
   }
 
   function closeSyncModal() {
@@ -507,10 +564,11 @@
         hint.textContent = 'Sincronizzazione attivata, dati caricati sul cloud.';
       } else {
         applyCloudData(cloud);
-        hint.textContent = 'Dati sincronizzati da un altro dispositivo.';
+        hint.textContent = 'Dati uniti con quelli di un altro dispositivo.';
       }
       renderSyncState();
-      setTimeout(closeSyncModal, 700);
+      document.getElementById('sync-disconnect').hidden = false;
+      setTimeout(closeSyncModal, 900);
     } catch {
       if (sync()) sync().disconnect();
       hint.textContent = 'Errore di sincronizzazione, riprova.';
@@ -524,9 +582,126 @@
     closeSyncModal();
   }
 
+  // ── Impostazioni ───────────────────────────────────────────────────────────
+
+  function patronToDisplay(mmdd) {
+    return /^\d{2}-\d{2}$/.test(mmdd || '') ? `${mmdd.slice(3,5)}/${mmdd.slice(0,2)}` : '';
+  }
+
+  function patronFromDisplay(str) {
+    const m = /^(\d{1,2})\/(\d{1,2})$/.exec((str || '').trim());
+    if (!m) return '';
+    const dd = +m[1], mm = +m[2];
+    if (mm < 1 || mm > 12 || dd < 1 || dd > 31) return '';
+    return `${pad(mm)}-${pad(dd)}`;
+  }
+
+  function applyConfig() {
+    Holidays.setCustom(Config.get('patronDate'), Config.get('patronName'));
+    Config.applyTheme();
+  }
+
+  function openSettings() {
+    const c = Config.load();
+    document.getElementById('set-workH').value         = c.workH;
+    document.getElementById('set-flexThreshold').value = c.flexThreshold;
+    document.getElementById('set-rolCap').value        = c.rolCap;
+    document.getElementById('set-weekStart').value     = String(c.weekStart);
+    document.getElementById('set-defaultFlexH').value  = c.defaultFlexH;
+    document.getElementById('set-theme').value         = c.theme;
+    document.getElementById('set-patronDate').value    = patronToDisplay(c.patronDate);
+    document.getElementById('set-patronName').value    = c.patronName;
+    document.getElementById('settings-overlay').classList.add('open');
+  }
+
+  function closeSettings() {
+    document.getElementById('settings-overlay').classList.remove('open');
+  }
+
+  function saveSettings() {
+    const num = (id, def, min, max) => {
+      let v = parseFloat(document.getElementById(id).value);
+      if (!isFinite(v)) v = def;
+      return Math.min(max, Math.max(min, v));
+    };
+    const theme = document.getElementById('set-theme').value;
+    Config.save({
+      workH:         num('set-workH', 8, 1, 24),
+      flexThreshold: Math.round(num('set-flexThreshold', 40, 0, 100)),
+      rolCap:        num('set-rolCap', 7.5, 0.5, 24),
+      weekStart:     document.getElementById('set-weekStart').value === '0' ? 0 : 1,
+      defaultFlexH:  num('set-defaultFlexH', 4, 0.5, 24),
+      theme:         ['auto','light','dark'].includes(theme) ? theme : 'auto',
+      patronDate:    patronFromDisplay(document.getElementById('set-patronDate').value),
+      patronName:    (document.getElementById('set-patronName').value || 'Patrono').trim().slice(0,40) || 'Patrono'
+    });
+    applyConfig();
+    closeSettings();
+    renderCalendar();
+    if (state.view === 'archive') renderArchive();
+  }
+
+  function resetSettings() {
+    if (!confirm('Ripristinare tutte le impostazioni ai valori predefiniti?')) return;
+    Config.reset();
+    applyConfig();
+    closeSettings();
+    renderCalendar();
+    if (state.view === 'archive') renderArchive();
+  }
+
+  // ── Export ─────────────────────────────────────────────────────────────────
+
+  function download(filename, text, mime) {
+    const blob = new Blob([text], { type: mime });
+    const url  = URL.createObjectURL(blob);
+    const a    = document.createElement('a');
+    a.href = url; a.download = filename;
+    document.body.appendChild(a); a.click();
+    document.body.removeChild(a); URL.revokeObjectURL(url);
+  }
+
+  function icsLabel(dd) {
+    if (!dd) return '';
+    switch (dd.type) {
+      case 'flex':     return `Flex${dd.flexH ? ' ' + formatH(dd.flexH) : ''}`;
+      case 'ferie':    return 'Ferie';
+      case 'festivo':  return 'Festivo aziendale';
+      case 'malattia': return 'Malattia';
+      case 'congedo':  return 'Congedo';
+      default:         return (parseFloat(dd.rol) || 0) > 0 ? `ROL ${formatH(dd.rol)}` : '';
+    }
+  }
+
+  function buildICS() {
+    const data  = Storage.load();
+    const stamp = new Date().toISOString().replace(/[-:]/g, '').replace(/\.\d+/, '');
+    const out = ['BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//FlexAlot//IT', 'CALSCALE:GREGORIAN'];
+    Object.values(data.months).forEach(mo => {
+      Object.entries(mo.days).forEach(([date, dd]) => {
+        const label = icsLabel(dd);
+        if (!label) return;
+        const start = date.replace(/-/g, '');
+        const end = new Date(date + 'T00:00:00');
+        end.setDate(end.getDate() + 1);
+        const endStr = `${end.getFullYear()}${pad(end.getMonth()+1)}${pad(end.getDate())}`;
+        out.push('BEGIN:VEVENT',
+          `UID:${date}@flexalot`,
+          `DTSTAMP:${stamp}`,
+          `DTSTART;VALUE=DATE:${start}`,
+          `DTEND;VALUE=DATE:${endStr}`,
+          `SUMMARY:FlexAlot – ${label}`,
+          'END:VEVENT');
+      });
+    });
+    out.push('END:VCALENDAR');
+    return out.join('\r\n');
+  }
+
   // ── Init ───────────────────────────────────────────────────────────────────
 
   function init() {
+    applyConfig();
     autoClose();
 
     document.getElementById('prev-month').addEventListener('click', () => {
@@ -547,15 +722,11 @@
     document.getElementById('modal-cancel').addEventListener('click', closeModal);
     document.getElementById('modal-save').addEventListener('click', saveModal);
 
-    document.getElementById('export-btn').addEventListener('click', () => {
-      const blob = new Blob([Storage.exportJSON()], { type: 'application/json' });
-      const url  = URL.createObjectURL(blob);
-      const a    = document.createElement('a');
-      a.href = url;
-      a.download = `flexalot-${new Date().toISOString().slice(0,10)}.json`;
-      document.body.appendChild(a); a.click();
-      document.body.removeChild(a); URL.revokeObjectURL(url);
-    });
+    const today = () => new Date().toISOString().slice(0,10);
+    document.getElementById('export-btn').addEventListener('click', () =>
+      download(`flexalot-${today()}.json`, Storage.exportJSON(), 'application/json'));
+    document.getElementById('ics-btn').addEventListener('click', () =>
+      download(`flexalot-${today()}.ics`, buildICS(), 'text/calendar'));
 
     const importFile = document.getElementById('import-file');
     document.getElementById('import-btn').addEventListener('click', () => importFile.click());
@@ -585,6 +756,15 @@
     });
     document.getElementById('sync-pass').addEventListener('keydown', e => {
       if (e.key === 'Enter') doConnect();
+    });
+    window.addEventListener('flexalot-sync', renderSyncState);
+
+    document.getElementById('settings-btn').addEventListener('click', openSettings);
+    document.getElementById('set-cancel').addEventListener('click', closeSettings);
+    document.getElementById('set-save').addEventListener('click', saveSettings);
+    document.getElementById('set-reset').addEventListener('click', resetSettings);
+    document.getElementById('settings-overlay').addEventListener('click', e => {
+      if (e.target.id === 'settings-overlay') closeSettings();
     });
 
     if ('serviceWorker' in navigator)

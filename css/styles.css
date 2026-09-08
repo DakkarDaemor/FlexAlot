@@ -7,6 +7,12 @@
   --ferie-bg:   #f0fdf4;
   --festivo:    #d97706;
   --festivo-bg: #fffbeb;
+  --malattia:   #e11d48;
+  --malattia-bg:#fff1f2;
+  --congedo:    #0891b2;
+  --congedo-bg: #ecfeff;
+  --rol:        #7c3aed;
+  --rol-bg:     #ede9fe;
   --danger:     #dc2626;
   --danger-bg:  #fef2f2;
   --text:       #0f172a;
@@ -15,10 +21,112 @@
   --border:     #e2e8f0;
   --bg:         #f1f5f9;
   --card:       #ffffff;
+  --header:     #3730a3;
+  --surface-2:  #f8fafc;
+  --surface-hol:#fef9f9;
+  --gutter:     #e7ebf1;
+  --on-primary: #ffffff;
+  --scrim:      rgba(15,23,42,0.45);
+  /* badge / chip fills */
+  --b-office:   #f1f5f9;
+  --b-flex:     #dbeafe;
+  --b-rol:      #ede9fe;
+  --b-ferie:    #dcfce7;
+  --b-festivo:  #fde68a;
+  --b-malattia: #ffe4e6;
+  --b-congedo:  #cffafe;
+  --b-hol:      #ffe4e6;
   --shadow:     0 1px 3px rgba(0,0,0,0.08), 0 1px 2px rgba(0,0,0,0.04);
   --nav-h:      60px;
   --header-h:   52px;
   --app-max:    720px;
+}
+
+/* ── Tema scuro ──────────────────────────────────────────────────────────────
+   I ruoli restano gli stessi, cambiano solo i valori. L'ordine conta:
+   1) media query per "automatico" (solo se non c'è una scelta esplicita chiara)
+   2) [data-theme="dark"] perché il toggle vinca anche partendo da sistema chiaro
+   3) [data-theme="light"] già coperto dal :root sopra                          */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --primary:    #818cf8;
+    --primary-bg: #312e81;
+    --flex:       #60a5fa;
+    --flex-bg:    #172a45;
+    --ferie:      #4ade80;
+    --ferie-bg:   #14311f;
+    --festivo:    #fbbf24;
+    --festivo-bg: #3a2a09;
+    --malattia:   #fb7185;
+    --malattia-bg:#3d1620;
+    --congedo:    #22d3ee;
+    --congedo-bg: #0c3a44;
+    --rol:        #a78bfa;
+    --rol-bg:     #2e2555;
+    --danger:     #f87171;
+    --danger-bg:  #3a1414;
+    --text:       #e5e9f0;
+    --text2:      #9aa7bd;
+    --text3:      #6b7a92;
+    --border:     #2f3b4f;
+    --bg:         #0f172a;
+    --card:       #1b2434;
+    --header:     #312e81;
+    --surface-2:  #161f30;
+    --surface-hol:#2a1a1e;
+    --gutter:     #060a13;
+    --on-primary: #ffffff;
+    --scrim:      rgba(0,0,0,0.6);
+    --b-office:   #334155;
+    --b-flex:     #1e3a8a;
+    --b-rol:      #4c3a8f;
+    --b-ferie:    #14532d;
+    --b-festivo:  #713f12;
+    --b-malattia: #4c1d24;
+    --b-congedo:  #164e63;
+    --b-hol:      #4c1d24;
+    --shadow:     0 1px 3px rgba(0,0,0,0.4), 0 1px 2px rgba(0,0,0,0.3);
+  }
+}
+
+:root[data-theme="dark"] {
+  --primary:    #818cf8;
+  --primary-bg: #312e81;
+  --flex:       #60a5fa;
+  --flex-bg:    #172a45;
+  --ferie:      #4ade80;
+  --ferie-bg:   #14311f;
+  --festivo:    #fbbf24;
+  --festivo-bg: #3a2a09;
+  --malattia:   #fb7185;
+  --malattia-bg:#3d1620;
+  --congedo:    #22d3ee;
+  --congedo-bg: #0c3a44;
+  --rol:        #a78bfa;
+  --rol-bg:     #2e2555;
+  --danger:     #f87171;
+  --danger-bg:  #3a1414;
+  --text:       #e5e9f0;
+  --text2:      #9aa7bd;
+  --text3:      #6b7a92;
+  --border:     #2f3b4f;
+  --bg:         #0f172a;
+  --card:       #1b2434;
+  --header:     #312e81;
+  --surface-2:  #161f30;
+  --surface-hol:#2a1a1e;
+  --gutter:     #060a13;
+  --on-primary: #ffffff;
+  --scrim:      rgba(0,0,0,0.6);
+  --b-office:   #334155;
+  --b-flex:     #1e3a8a;
+  --b-rol:      #4c3a8f;
+  --b-ferie:    #14532d;
+  --b-festivo:  #713f12;
+  --b-malattia: #4c1d24;
+  --b-congedo:  #164e63;
+  --b-hol:      #4c1d24;
+  --shadow:     0 1px 3px rgba(0,0,0,0.4), 0 1px 2px rgba(0,0,0,0.3);
 }
 
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -69,27 +177,28 @@ body {
 .title-bar-name {
   font-size: 1.1rem;
   font-weight: 700;
-  color: #fff;
+  color: var(--on-primary);
   letter-spacing: 0.04em;
 }
 
-.title-bar-sync {
+.title-bar-btn {
   position: absolute;
-  right: 6px;
   top: calc(env(safe-area-inset-top, 0) + 4px);
   width: 36px; height: 36px;
   background: transparent;
   border: none;
   border-radius: 50%;
-  color: #fff;
+  color: var(--on-primary);
   cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
   transition: background 0.15s;
 }
-.title-bar-sync:active { background: rgba(255,255,255,0.22); }
-.title-bar-sync svg { width: 19px; height: 19px; }
+.title-bar-btn:active { background: rgba(255,255,255,0.22); }
+.title-bar-btn svg { width: 19px; height: 19px; }
+.title-bar-settings { left: 6px; }
+.title-bar-sync { right: 6px; }
 
 .sync-dot {
   position: absolute;
@@ -99,13 +208,20 @@ body {
   border: 1.5px solid var(--primary);
   border-radius: 50%;
 }
+.sync-dot.syncing { background: var(--festivo); animation: sync-pulse 1s ease-in-out infinite; }
+.sync-dot.error   { background: var(--danger); }
+
+@keyframes sync-pulse {
+  0%, 100% { opacity: 1; }
+  50%      { opacity: 0.3; }
+}
 
 /* ── Header ──────────────────────────────────────────────────────────────── */
 
 .app-header {
   height: var(--header-h);
-  background: #3730a3;
-  color: #fff;
+  background: var(--header);
+  color: var(--on-primary);
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -125,7 +241,7 @@ body {
   width: 38px; height: 38px;
   background: rgba(255,255,255,0.18);
   border: none; border-radius: 50%;
-  color: #fff; cursor: pointer;
+  color: var(--on-primary); cursor: pointer;
   display: flex; align-items: center; justify-content: center;
   font-size: 1.5rem; font-weight: 300;
   transition: background 0.15s;
@@ -195,7 +311,7 @@ body {
 .warn-icon {
   display: inline-block;
   background: var(--danger);
-  color: #fff;
+  color: var(--on-primary);
   font-size: 0.6rem;
   font-weight: 700;
   width: 14px; height: 14px;
@@ -222,10 +338,11 @@ body {
   white-space: nowrap;
 }
 
-.chip-ferie  { background: var(--ferie-bg);   color: var(--ferie); }
-.chip-rol    { background: #ede9fe;            color: #7c3aed; }
-.chip-fest   { background: var(--festivo-bg);  color: var(--festivo); }
-.chip-warn   { background: #fef9c3;            color: #854d0e; }
+.chip-ferie  { background: var(--b-ferie);    color: var(--ferie); }
+.chip-rol    { background: var(--rol-bg);     color: var(--rol); }
+.chip-fest   { background: var(--b-festivo);  color: var(--festivo); }
+.chip-mal    { background: var(--b-malattia); color: var(--malattia); }
+.chip-con    { background: var(--b-congedo);  color: var(--congedo); }
 
 /* ── Calendar ────────────────────────────────────────────────────────────── */
 
@@ -291,12 +408,12 @@ body {
 .day-cell.empty:active { transform: none; }
 
 .day-cell.weekend {
-  background: #f8fafc;
+  background: var(--surface-2);
   cursor: pointer;
 }
 
 .day-cell.nat-hol {
-  background: #fef9f9;
+  background: var(--surface-hol);
   cursor: pointer;
 }
 
@@ -308,9 +425,11 @@ body {
   border-color: var(--primary);
 }
 
-.day-cell.type-flex    { background: var(--flex-bg); }
-.day-cell.type-ferie   { background: var(--ferie-bg); }
-.day-cell.type-festivo { background: var(--festivo-bg); }
+.day-cell.type-flex     { background: var(--flex-bg); }
+.day-cell.type-ferie    { background: var(--ferie-bg); }
+.day-cell.type-festivo  { background: var(--festivo-bg); }
+.day-cell.type-malattia { background: var(--malattia-bg); }
+.day-cell.type-congedo  { background: var(--congedo-bg); }
 
 .day-num {
   font-size: 0.85rem;
@@ -324,7 +443,7 @@ body {
 
 .today .day-num {
   background: var(--primary);
-  color: #fff;
+  color: var(--on-primary);
 }
 
 .weekend .day-num, .nat-hol .day-num { color: var(--text3); }
@@ -339,12 +458,14 @@ body {
   white-space: nowrap;
 }
 
-.b-office  { background: #f1f5f9; color: var(--text2); }
-.b-flex    { background: #dbeafe; color: var(--flex); }
-.b-rol     { background: #ede9fe; color: #7c3aed; }
-.b-ferie   { background: #dcfce7; color: var(--ferie); }
-.b-festivo { background: #fde68a; color: #92400e; }
-.b-nat-hol { background: #ffe4e6; color: #b91c1c; }
+.b-office   { background: var(--b-office);   color: var(--text2); }
+.b-flex     { background: var(--b-flex);     color: var(--flex); }
+.b-rol      { background: var(--b-rol);      color: var(--rol); }
+.b-ferie    { background: var(--b-ferie);    color: var(--ferie); }
+.b-festivo  { background: var(--b-festivo);  color: var(--festivo); }
+.b-malattia { background: var(--b-malattia); color: var(--malattia); }
+.b-congedo  { background: var(--b-congedo);  color: var(--congedo); }
+.b-nat-hol  { background: var(--b-hol);      color: var(--danger); }
 
 .day-badges {
   display: flex;
@@ -396,7 +517,7 @@ body {
   display: none;
   position: fixed;
   inset: 0;
-  background: rgba(15,23,42,0.45);
+  background: var(--scrim);
   z-index: 200;
   align-items: flex-end;
   justify-content: center;
@@ -468,11 +589,13 @@ body {
   color: var(--text2);
 }
 
-.type-btn.sel                    { border-color: var(--primary); background: var(--primary-bg); color: var(--primary); }
-.type-btn[data-t="flex"].sel     { border-color: var(--flex);    background: var(--flex-bg);    color: var(--flex); }
-.type-btn[data-t="rol"].sel      { border-color: #7c3aed;        background: #ede9fe;            color: #7c3aed; }
-.type-btn[data-t="ferie"].sel    { border-color: var(--ferie);   background: var(--ferie-bg);   color: var(--ferie); }
-.type-btn[data-t="festivo"].sel  { border-color: var(--festivo); background: var(--festivo-bg); color: var(--festivo); }
+.type-btn.sel                    { border-color: var(--primary);  background: var(--primary-bg);  color: var(--primary); }
+.type-btn[data-t="flex"].sel     { border-color: var(--flex);     background: var(--flex-bg);     color: var(--flex); }
+.type-btn[data-t="rol"].sel      { border-color: var(--rol);      background: var(--rol-bg);      color: var(--rol); }
+.type-btn[data-t="ferie"].sel    { border-color: var(--ferie);    background: var(--ferie-bg);    color: var(--ferie); }
+.type-btn[data-t="festivo"].sel  { border-color: var(--festivo);  background: var(--festivo-bg);  color: var(--festivo); }
+.type-btn[data-t="malattia"].sel { border-color: var(--malattia); background: var(--malattia-bg); color: var(--malattia); }
+.type-btn[data-t="congedo"].sel  { border-color: var(--congedo);  background: var(--congedo-bg);  color: var(--congedo); }
 
 /* ROL stepper */
 .rol-wrap { margin-bottom: 16px; }
@@ -538,7 +661,7 @@ body {
   flex: 1;
   padding: 13px;
   background: var(--primary);
-  color: #fff;
+  color: var(--on-primary);
   border: none;
   border-radius: 10px;
   font-size: 0.95rem;
@@ -559,7 +682,7 @@ body {
   cursor: pointer;
 }
 
-/* Sync modal */
+/* Sync / Settings modal */
 .sync-desc {
   font-size: 0.85rem;
   color: var(--text2);
@@ -567,7 +690,8 @@ body {
   margin-bottom: 14px;
 }
 
-.sync-input {
+.sync-input,
+.field-input {
   width: 100%;
   padding: 12px 14px;
   border: 2px solid var(--border);
@@ -576,15 +700,40 @@ body {
   color: var(--text);
   font-size: 0.95rem;
   font-family: inherit;
+  -webkit-appearance: none;
+  appearance: none;
 }
-.sync-input:focus { outline: none; border-color: var(--primary); }
-.sync-input:disabled { opacity: 0.5; }
+.sync-input:focus,
+.field-input:focus { outline: none; border-color: var(--primary); }
+.sync-input:disabled,
+.field-input:disabled { opacity: 0.5; }
 
 .sync-hint {
   font-size: 0.78rem;
   color: var(--text3);
   margin-top: 8px;
   min-height: 1.1em;
+}
+
+.field { margin-bottom: 14px; }
+.field label {
+  display: block;
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--text2);
+  margin-bottom: 6px;
+}
+.field-hint {
+  font-size: 0.72rem;
+  color: var(--text3);
+  margin-top: 5px;
+  line-height: 1.4;
+}
+select.field-input {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath fill='%2394a3b8' d='M1 1l5 5 5-5'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 14px center;
+  padding-right: 36px;
 }
 
 .btn-disconnect {
@@ -638,8 +787,8 @@ body {
   letter-spacing: 0.06em;
 }
 
-.arch-badge.closed { background: #e0e7ff; color: var(--primary); }
-.arch-badge.open   { background: #dcfce7; color: var(--ferie); }
+.arch-badge.closed { background: var(--primary-bg); color: var(--primary); }
+.arch-badge.open   { background: var(--b-ferie);    color: var(--ferie); }
 
 .arch-stats {
   display: flex;
@@ -706,5 +855,13 @@ body {
 /* Su schermi larghi la colonna resta centrata (max var(--app-max)); un filo di
    contrasto ai lati la stacca dallo sfondo senza "incorniciare" un finto telefono. */
 @media (min-width: 760px) {
-  body { background: #e7ebf1; }
+  body { background: var(--gutter); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+  }
 }
