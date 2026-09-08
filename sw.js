@@ -1,4 +1,4 @@
-const CACHE = 'flexalot-v12';
+const CACHE = 'flexalot-v13';
 const ASSETS = [
   './',
   './index.html',

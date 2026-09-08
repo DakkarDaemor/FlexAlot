@@ -12,6 +12,26 @@
     view: 'calendar'
   };
 
+  // Default ore Flex: 4h alla prima volta, poi l'ultimo valore salvato — così
+  // si adatta all'abitudine di chi usa l'app. È una preferenza locale di UI,
+  // non un dato del calendario: non passa da Storage né dalla sync.
+  const LAST_FLEX_KEY = 'flexalot_last_flexH';
+  const DEFAULT_FLEX_H = 4;
+
+  function rememberedFlexH() {
+    try {
+      const v = parseFloat(localStorage.getItem(LAST_FLEX_KEY));
+      if (v > 0 && v <= WORK_H) return v;
+    } catch {}
+    return DEFAULT_FLEX_H;
+  }
+
+  function rememberFlexH(h) {
+    try {
+      if (h > 0 && h <= WORK_H) localStorage.setItem(LAST_FLEX_KEY, String(h));
+    } catch {}
+  }
+
   // ── Utilities ──────────────────────────────────────────────────────────────
 
   const pad = n => String(n).padStart(2, '0');
@@ -305,7 +325,7 @@
             const nowOn = !wasSelected;
             btn.classList.toggle('sel', nowOn);
             if (t === 'flex') {
-              if (nowOn && _flexVal <= 0) { _flexVal = 4; updateFlexStepper(); }
+              if (nowOn && _flexVal <= 0) { _flexVal = rememberedFlexH(); updateFlexStepper(); }
               document.getElementById('flex-wrap').style.display = nowOn ? '' : 'none';
             } else {
               if (nowOn && _rolVal <= 0)  { _rolVal  = 4; updateRolStepper(); }
@@ -338,6 +358,7 @@
       flexH = flexBtnSel ? _flexVal : 0;
       rol   = rolBtnSel  ? _rolVal  : 0;
     }
+    if (flexH > 0) rememberFlexH(flexH);
     Storage.setDay(_editKey.slice(0,7), _editKey, { type, flexH, rol });
     closeModal();
     renderCalendar();
