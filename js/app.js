@@ -410,6 +410,99 @@
     if (v === 'archive') renderArchive();
   }
 
+  // ── Sync (Firebase, opzionale) ─────────────────────────────────────────────
+
+  const sync = () => window.FlexAlotSync;
+
+  function renderSyncState() {
+    const on = !!(sync() && sync().isConnected());
+    document.getElementById('sync-dot').hidden = !on;
+  }
+
+  function applyCloudData(data) {
+    Storage.importJSON(JSON.stringify(data));
+    autoClose();
+    renderCalendar();
+    if (state.view === 'archive') renderArchive();
+  }
+
+  // All'avvio: se il dispositivo è già collegato a un profilo cloud, allinea i
+  // dati locali con quelli remoti (last-write-wins sull'intero documento).
+  async function syncBootstrap() {
+    renderSyncState();
+    if (!sync() || !sync().isConfigured() || !sync().isConnected()) return;
+    try {
+      const cloud = await sync().pull();
+      if (cloud === null) sync().push(Storage.load());   // profilo nuovo: carico i dati locali
+      else applyCloudData(cloud);
+    } catch {
+      /* offline: si continua con i dati locali, verranno ripropagati al primo salvataggio */
+    }
+  }
+
+  function openSyncModal() {
+    const overlay = document.getElementById('sync-overlay');
+    const hint = document.getElementById('sync-hint');
+    const disconnectBtn = document.getElementById('sync-disconnect');
+    const connectBtn = document.getElementById('sync-connect');
+    const input = document.getElementById('sync-pass');
+
+    input.value = '';
+
+    if (!sync() || !sync().isConfigured()) {
+      hint.textContent = 'Sincronizzazione non configurata in questa installazione.';
+      connectBtn.disabled = true;
+      input.disabled = true;
+      disconnectBtn.hidden = true;
+    } else {
+      connectBtn.disabled = false;
+      input.disabled = false;
+      const connected = sync().isConnected();
+      hint.textContent = connected
+        ? 'Sincronizzazione attiva su questo dispositivo.'
+        : 'Nessuna sincronizzazione attiva: i dati restano solo su questo dispositivo.';
+      disconnectBtn.hidden = !connected;
+    }
+
+    overlay.classList.add('open');
+  }
+
+  function closeSyncModal() {
+    document.getElementById('sync-overlay').classList.remove('open');
+  }
+
+  async function doConnect() {
+    const input = document.getElementById('sync-pass');
+    const hint = document.getElementById('sync-hint');
+    const pass = input.value.trim();
+    if (!pass) { hint.textContent = 'Inserisci una passphrase.'; return; }
+    if (!sync() || !sync().isConfigured()) return;
+
+    hint.textContent = 'Sincronizzazione in corso…';
+    try {
+      const cloud = await sync().connect(pass);
+      if (cloud === null) {
+        sync().push(Storage.load());
+        hint.textContent = 'Sincronizzazione attivata, dati caricati sul cloud.';
+      } else {
+        applyCloudData(cloud);
+        hint.textContent = 'Dati sincronizzati da un altro dispositivo.';
+      }
+      renderSyncState();
+      setTimeout(closeSyncModal, 700);
+    } catch {
+      if (sync()) sync().disconnect();
+      hint.textContent = 'Errore di sincronizzazione, riprova.';
+      renderSyncState();
+    }
+  }
+
+  function doDisconnect() {
+    if (sync()) sync().disconnect();
+    renderSyncState();
+    closeSyncModal();
+  }
+
   // ── Init ───────────────────────────────────────────────────────────────────
 
   function init() {
@@ -462,10 +555,22 @@
       reader.readAsText(file);
     });
 
+    document.getElementById('sync-btn').addEventListener('click', openSyncModal);
+    document.getElementById('sync-cancel').addEventListener('click', closeSyncModal);
+    document.getElementById('sync-connect').addEventListener('click', doConnect);
+    document.getElementById('sync-disconnect').addEventListener('click', doDisconnect);
+    document.getElementById('sync-overlay').addEventListener('click', e => {
+      if (e.target.id === 'sync-overlay') closeSyncModal();
+    });
+    document.getElementById('sync-pass').addEventListener('keydown', e => {
+      if (e.key === 'Enter') doConnect();
+    });
+
     if ('serviceWorker' in navigator)
       navigator.serviceWorker.register('sw.js').catch(() => {});
 
     renderCalendar();
+    syncBootstrap();
   }
 
   document.addEventListener('DOMContentLoaded', init);

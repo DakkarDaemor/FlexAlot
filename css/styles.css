@@ -52,6 +52,7 @@ body {
 /* ── Title bar ───────────────────────────────────────────────────────────── */
 
 .title-bar {
+  position: relative;
   height: 44px;
   background: var(--primary);
   display: flex;
@@ -66,6 +67,33 @@ body {
   font-weight: 700;
   color: #fff;
   letter-spacing: 0.04em;
+}
+
+.title-bar-sync {
+  position: absolute;
+  right: 6px;
+  top: calc(env(safe-area-inset-top, 0) + 4px);
+  width: 36px; height: 36px;
+  background: transparent;
+  border: none;
+  border-radius: 50%;
+  color: #fff;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.15s;
+}
+.title-bar-sync:active { background: rgba(255,255,255,0.22); }
+.title-bar-sync svg { width: 19px; height: 19px; }
+
+.sync-dot {
+  position: absolute;
+  top: 6px; right: 6px;
+  width: 8px; height: 8px;
+  background: var(--ferie);
+  border: 1.5px solid var(--primary);
+  border-radius: 50%;
 }
 
 /* ── Header ──────────────────────────────────────────────────────────────── */
@@ -521,6 +549,47 @@ body {
   cursor: pointer;
 }
 
+/* Sync modal */
+.sync-desc {
+  font-size: 0.85rem;
+  color: var(--text2);
+  line-height: 1.5;
+  margin-bottom: 14px;
+}
+
+.sync-input {
+  width: 100%;
+  padding: 12px 14px;
+  border: 2px solid var(--border);
+  border-radius: 10px;
+  background: var(--card);
+  color: var(--text);
+  font-size: 0.95rem;
+  font-family: inherit;
+}
+.sync-input:focus { outline: none; border-color: var(--primary); }
+.sync-input:disabled { opacity: 0.5; }
+
+.sync-hint {
+  font-size: 0.78rem;
+  color: var(--text3);
+  margin-top: 8px;
+  min-height: 1.1em;
+}
+
+.btn-disconnect {
+  width: 100%;
+  margin-top: 10px;
+  padding: 11px;
+  background: var(--danger-bg);
+  color: var(--danger);
+  border: none;
+  border-radius: 10px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
 /* ── Archive ─────────────────────────────────────────────────────────────── */
 
 .archive-list {
@@ -611,4 +680,30 @@ body {
 @media (min-width: 430px) {
   .day-cell { min-height: 70px; }
   .stat-val { font-size: 1.2rem; }
+}
+
+@media (min-width: 700px) {
+  body {
+    background: #cbd5e1;
+    display: flex;
+    align-items: flex-start;
+    justify-content: center;
+    padding: 24px 0 0;
+  }
+
+  #app {
+    width: 430px;
+    height: calc(100dvh - 24px);
+    border-radius: 24px 24px 0 0;
+    overflow: hidden;
+    box-shadow: 0 8px 40px rgba(0,0,0,0.22);
+  }
+
+  .bottom-nav {
+    position: sticky;
+    width: 430px;
+    left: auto;
+    right: auto;
+    border-radius: 0 0 0 0;
+  }
 }

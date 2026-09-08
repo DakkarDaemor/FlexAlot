@@ -1,4 +1,4 @@
-const CACHE = 'flexalot-v9';
+const CACHE = 'flexalot-v11';
 const ASSETS = [
   './',
   './index.html',
@@ -6,6 +6,7 @@ const ASSETS = [
   './js/holidays.js',
   './js/storage.js',
   './js/app.js',
+  './js/sync.js',
   './manifest.json',
   './icons/icon.svg'
 ];

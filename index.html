@@ -20,6 +20,13 @@
   <!-- ── Title bar ─────────────────────────────────────────────────────── -->
   <div id="title-bar" class="title-bar">
     <span class="title-bar-name">FlexAlot</span>
+    <button class="title-bar-sync" id="sync-btn" aria-label="Sincronizza dispositivi">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M21 12a9 9 0 0 1-9 9 9 9 0 0 1-7.5-4M3 12a9 9 0 0 1 9-9 9 9 0 0 1 7.5 4"/>
+        <path d="M21 3v5h-5M3 21v-5h5"/>
+      </svg>
+      <span class="sync-dot" id="sync-dot" hidden></span>
+    </button>
   </div>
 
   <!-- ── Calendar View ──────────────────────────────────────────────────── -->
@@ -104,8 +111,27 @@
   </div>
 </div>
 
+<!-- ── Sync Modal ───────────────────────────────────────────────────────── -->
+<div id="sync-overlay" class="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="sync-modal-title">
+  <div class="modal-sheet">
+    <div class="modal-handle"></div>
+    <h2 id="sync-modal-title">Sincronizza dispositivi</h2>
+    <div class="modal-body">
+      <p class="sync-desc">Scegli una passphrase. Usando la stessa su più dispositivi vedrai sempre gli stessi dati. Non è un login: la passphrase serve solo a etichettare i tuoi dati sul cloud.</p>
+      <input type="password" id="sync-pass" class="sync-input" placeholder="Passphrase" autocomplete="off" autocapitalize="off" spellcheck="false">
+      <p class="sync-hint" id="sync-hint"></p>
+    </div>
+    <div class="modal-actions">
+      <button id="sync-cancel" class="btn-cancel">Annulla</button>
+      <button id="sync-connect" class="btn-save">Sincronizza</button>
+    </div>
+    <button id="sync-disconnect" class="btn-disconnect" hidden>Disconnetti (solo locale)</button>
+  </div>
+</div>
+
 <script src="js/holidays.js"></script>
 <script src="js/storage.js"></script>
 <script src="js/app.js"></script>
+<script type="module" src="js/sync.js"></script>
 </body>
 </html>

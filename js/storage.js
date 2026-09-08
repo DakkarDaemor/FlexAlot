@@ -8,6 +8,9 @@ const Storage = (() => {
 
   function save(data) {
     localStorage.setItem(KEY, JSON.stringify(data));
+    if (window.FlexAlotSync && window.FlexAlotSync.isConnected()) {
+      window.FlexAlotSync.push(data);
+    }
   }
 
   function getMonth(ym) {
