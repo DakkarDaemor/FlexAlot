@@ -678,19 +678,54 @@
     el.textContent = `Versione ${v}${dt} · tocca per aggiornare`;
   }
 
-  // Tocca la versione per forzare il controllo: aggiorna il service worker (che
-  // fa skipWaiting in install) e ricarica, così si vede subito se è arrivata una
-  // build più recente.
+  // Tocca la versione per forzare l'aggiornamento. La cache del SW è "cache-first"
+  // e cambia nome a ogni build: l'unico modo di aggiornare è far installare e
+  // ATTIVARE il nuovo service worker, poi ricaricare. Su mobile la rete è lenta,
+  // quindi non basta un timeout fisso: seguiamo il ciclo di vita del SW.
   async function checkForUpdate() {
     const el = document.getElementById('settings-version');
     el.textContent = 'Controllo aggiornamenti…';
+
+    if (!('serviceWorker' in navigator)) { location.reload(); return; }
+
+    let reg;
+    try { reg = await navigator.serviceWorker.getRegistration(); } catch { reg = null; }
+    if (!reg) { location.reload(); return; }
+
+    let done = false;
+    const finish = () => { if (!done) { done = true; location.reload(); } };
+
+    // Il nuovo SW ha preso il controllo della pagina (clients.claim in activate).
+    navigator.serviceWorker.addEventListener('controllerchange', finish);
+
+    // Segui il SW in arrivo fino a "activated" (se controllerchange non scatta,
+    // es. prima installazione senza SW precedente).
+    const track = sw => sw && sw.addEventListener('statechange', () => {
+      if (sw.state === 'activated') finish();
+    });
+    track(reg.installing || reg.waiting);
+
+    let updateFound = false;
+    reg.addEventListener('updatefound', () => {
+      updateFound = true;
+      const sw = reg.installing;
+      track(sw);
+      // Se resta in attesa (skipWaiting non applicato), sollecitalo.
+      if (reg.waiting) reg.waiting.postMessage('skipWaiting');
+    });
+
     try {
-      if ('serviceWorker' in navigator) {
-        const reg = await navigator.serviceWorker.getRegistration();
-        if (reg) await reg.update();
-      }
-    } catch { /* offline: si ricarica comunque */ }
-    setTimeout(() => location.reload(), 800);
+      await reg.update();
+      if (reg.waiting) reg.waiting.postMessage('skipWaiting');
+    } catch {
+      finish();                       // offline: ricarica e basta
+      return;
+    }
+
+    // Nessun SW nuovo entro un attimo => già aggiornata: ricarica comunque.
+    setTimeout(() => { if (!updateFound) finish(); }, 2500);
+    // Rete molto lenta: tetto massimo di attesa.
+    setTimeout(finish, 8000);
   }
 
   function closeSettings() {

@@ -1,4 +1,4 @@
-const CACHE = 'flexalot-11';
+const CACHE = 'flexalot-12';
 const ASSETS = [
   './',
   './index.html',
@@ -18,6 +18,11 @@ const ASSETS = [
 self.addEventListener('install', e => {
   e.waitUntil(caches.open(CACHE).then(c => c.addAll(ASSETS)));
   self.skipWaiting();
+});
+
+// Il pulsante "aggiorna" nell'app può sollecitare un SW rimasto in attesa.
+self.addEventListener('message', e => {
+  if (e.data === 'skipWaiting') self.skipWaiting();
 });
 
 self.addEventListener('activate', e => {
