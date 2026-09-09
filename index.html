@@ -184,7 +184,8 @@
       </div>
       <div class="field">
         <label for="set-patronDate">Festa del patrono (GG/MM, opzionale)</label>
-        <input type="text" id="set-patronDate" class="field-input" placeholder="es. 25/04" inputmode="numeric" autocomplete="off">
+        <input type="text" id="set-patronDate" class="field-input" placeholder="es. 25/04" inputmode="numeric" maxlength="5" autocomplete="off">
+        <p class="field-hint" id="patron-hint"></p>
       </div>
       <div class="field">
         <label for="set-patronName">Nome della festa del patrono</label>
@@ -196,9 +197,11 @@
       <button id="set-save" class="btn-save">Salva</button>
     </div>
     <button id="set-reset" class="btn-disconnect">Ripristina predefiniti</button>
+    <button type="button" id="settings-version" class="settings-version" aria-label="Versione dell'app — tocca per cercare aggiornamenti"></button>
   </div>
 </div>
 
+<script src="js/version.js"></script>
 <script src="js/holidays.js"></script>
 <script src="js/storage.js"></script>
 <script src="js/app.js"></script>

@@ -135,6 +135,9 @@ html, body {
   height: 100%;
   overscroll-behavior: none;
   -webkit-tap-highlight-color: transparent;
+  /* Niente zoom da doppio tap: lascia passare tap e scroll, blocca il gesto di zoom.
+     Il pinch-zoom e i gesti iOS sono disinnescati via JS in app.js. */
+  touch-action: manipulation;
 }
 
 body {
@@ -728,7 +731,9 @@ body {
   color: var(--text3);
   margin-top: 5px;
   line-height: 1.4;
+  min-height: 1em;
 }
+.field-hint.hint-err { color: var(--danger); }
 select.field-input {
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath fill='%2394a3b8' d='M1 1l5 5 5-5'/%3E%3C/svg%3E");
   background-repeat: no-repeat;
@@ -748,6 +753,22 @@ select.field-input {
   font-weight: 600;
   cursor: pointer;
 }
+
+.settings-version {
+  display: block;
+  width: 100%;
+  margin-top: 14px;
+  padding: 4px;
+  background: none;
+  border: none;
+  color: var(--text3);
+  font-family: inherit;
+  font-size: 0.7rem;
+  letter-spacing: 0.02em;
+  text-align: center;
+  cursor: pointer;
+}
+.settings-version:active { color: var(--text2); }
 
 /* ── Archive ─────────────────────────────────────────────────────────────── */
 

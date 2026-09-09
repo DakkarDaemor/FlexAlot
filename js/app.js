@@ -588,12 +588,44 @@
     return /^\d{2}-\d{2}$/.test(mmdd || '') ? `${mmdd.slice(3,5)}/${mmdd.slice(0,2)}` : '';
   }
 
+  // Tollerante: sulle tastiere numeriche mobile lo "/" spesso non c'è, quindi
+  // accettiamo qualunque separatore (o nessuno): "25/04", "25.4", "2504", "254"…
   function patronFromDisplay(str) {
-    const m = /^(\d{1,2})\/(\d{1,2})$/.exec((str || '').trim());
-    if (!m) return '';
-    const dd = +m[1], mm = +m[2];
-    if (mm < 1 || mm > 12 || dd < 1 || dd > 31) return '';
-    return `${pad(mm)}-${pad(dd)}`;
+    const d = (str || '').replace(/\D/g, '');
+    if (d.length < 2 || d.length > 4) return '';
+    const splits = d.length === 2 ? [[d.slice(0, 1), d.slice(1)]]
+                 : d.length === 3 ? [[d.slice(0, 2), d.slice(2)], [d.slice(0, 1), d.slice(1)]]
+                 :                   [[d.slice(0, 2), d.slice(2)]];
+    for (const [ds, ms] of splits) {
+      const dd = +ds, mm = +ms;
+      if (mm >= 1 && mm <= 12 && dd >= 1 && dd <= 31) return `${pad(mm)}-${pad(dd)}`;
+    }
+    return '';
+  }
+
+  // Man mano che si digita: solo cifre, "/" inserito da solo dopo il giorno.
+  function formatPatronInput(el) {
+    let d = el.value.replace(/\D/g, '').slice(0, 4);
+    el.value = d.length > 2 ? `${d.slice(0, 2)}/${d.slice(2)}` : d;
+  }
+
+  function updatePatronHint() {
+    const hint = document.getElementById('patron-hint');
+    const raw  = document.getElementById('set-patronDate').value.trim();
+    if (!raw) {
+      hint.textContent = 'Lascia vuoto se non applicabile.';
+      hint.classList.remove('hint-err');
+      return;
+    }
+    const mmdd = patronFromDisplay(raw);
+    if (!mmdd) {
+      hint.textContent = 'Formato non valido: usa GG/MM (es. 25/04).';
+      hint.classList.add('hint-err');
+      return;
+    }
+    const [mm, dd] = mmdd.split('-').map(Number);
+    hint.textContent = `→ ${dd} ${MONTHS[mm - 1].toLowerCase()}`;
+    hint.classList.remove('hint-err');
   }
 
   function applyConfig() {
@@ -611,7 +643,34 @@
     document.getElementById('set-theme').value         = c.theme;
     document.getElementById('set-patronDate').value    = patronToDisplay(c.patronDate);
     document.getElementById('set-patronName').value    = c.patronName;
+    updatePatronHint();
+    renderVersion();
     document.getElementById('settings-overlay').classList.add('open');
+  }
+
+  // ── Versione ───────────────────────────────────────────────────────────────
+  // js/version.js è rigenerato a ogni commit dal hook scripts/hooks/pre-commit.
+
+  function renderVersion() {
+    const el = document.getElementById('settings-version');
+    const v  = self.APP_VERSION || 'dev';
+    const dt = self.APP_BUILD_DATE ? ` · ${self.APP_BUILD_DATE}` : '';
+    el.textContent = `FlexAlot ${v}${dt}`;
+  }
+
+  // Tocca la versione per forzare il controllo: aggiorna il service worker (che
+  // fa skipWaiting in install) e ricarica, così si vede subito se è arrivata una
+  // build più recente.
+  async function checkForUpdate() {
+    const el = document.getElementById('settings-version');
+    el.textContent = 'Controllo aggiornamenti…';
+    try {
+      if ('serviceWorker' in navigator) {
+        const reg = await navigator.serviceWorker.getRegistration();
+        if (reg) await reg.update();
+      }
+    } catch { /* offline: si ricarica comunque */ }
+    setTimeout(() => location.reload(), 800);
   }
 
   function closeSettings() {
@@ -763,9 +822,21 @@
     document.getElementById('set-cancel').addEventListener('click', closeSettings);
     document.getElementById('set-save').addEventListener('click', saveSettings);
     document.getElementById('set-reset').addEventListener('click', resetSettings);
+    document.getElementById('settings-version').addEventListener('click', checkForUpdate);
+    document.getElementById('set-patronDate').addEventListener('input', e => {
+      formatPatronInput(e.target);
+      updatePatronHint();
+    });
     document.getElementById('settings-overlay').addEventListener('click', e => {
       if (e.target.id === 'settings-overlay') closeSettings();
     });
+
+    // iOS ignora user-scalable=no: disinneschiamo pinch e doppio-tap a mano.
+    ['gesturestart', 'gesturechange', 'gestureend'].forEach(ev =>
+      document.addEventListener(ev, e => e.preventDefault(), { passive: false }));
+    document.addEventListener('touchmove', e => {
+      if (e.touches.length > 1) e.preventDefault();
+    }, { passive: false });
 
     if ('serviceWorker' in navigator)
       navigator.serviceWorker.register('sw.js').catch(() => {});

@@ -17,6 +17,7 @@ PWA mobile-first per tenere traccia delle ore di ufficio e smart working mese pe
 - **Sync opzionale tra dispositivi** — via Firebase + passphrase, senza account (vedi sotto); merge mese per mese, disattivata di default
 - **Offline-first** — service worker incluso, funziona senza connessione
 - **Installabile** — manifest PWA, aggiungibile alla home screen su Android e iOS
+- **Versione visibile** — numero di build in fondo alle Impostazioni; toccalo per forzare il controllo aggiornamenti. La versione è stampata automaticamente a ogni commit (vedi sotto)
 
 ## Stack
 
@@ -30,6 +31,9 @@ Nessuna dipendenza esterna, nessun framework, nessun build step.
 # Clona il repo
 git clone https://github.com/TUO_USERNAME/flexalot.git
 cd flexalot
+
+# Attiva il hook che stampa la versione a ogni commit (una volta sola)
+git config core.hooksPath scripts/hooks
 
 # Servi i file statici (qualsiasi server HTTP va bene)
 npx serve .
@@ -47,15 +51,20 @@ Apri `http://localhost:8080` nel browser.
 flexalot/
 ├── index.html          # Shell dell'app, due viste: calendario e archivio
 ├── manifest.json       # Web App Manifest (PWA)
-├── sw.js               # Service worker (cache-first)
+├── sw.js               # Service worker (cache-first); nome cache stampato dal hook
+├── VERSION             # Parte "umana" della versione (MAJOR.MINOR.PATCH), da alzare a mano
 ├── css/
 │   └── styles.css      # Stili (design system, modal, calendario)
 ├── js/
 │   ├── config.js       # Preferenze locali del dispositivo (contratto, tema, patrono)
+│   ├── version.js      # Versione + data di build — GENERATO dal hook, non modificare
 │   ├── app.js          # Logica principale: rendering, modal, navigazione, impostazioni, export
 │   ├── storage.js      # CRUD + merge su localStorage (chiave: flexalot_v1)
 │   ├── sync.js         # Sincronizzazione cloud opzionale (Firebase, ES module)
 │   └── holidays.js     # Festività nazionali italiane per anno (+ patrono)
+├── scripts/
+│   └── hooks/
+│       └── pre-commit  # Stampa versione/build in version.js e sw.js a ogni commit
 └── icons/
     ├── icon.svg        # Icona app
     ├── icon-192.png    # Icona PWA (maskable)
@@ -91,6 +100,22 @@ Le **preferenze** (ore/giorno, soglia flex, cap ROL, inizio settimana, tema, pat
 ultimo valore Flex usato) stanno in chiavi separate (`flexalot_config_v1`,
 `flexalot_last_flexH`): sono per-dispositivo e **non** vengono sincronizzate, così
 ogni persona tiene le proprie. Si modificano dall'icona ingranaggio in alto a sinistra.
+
+## Versione e aggiornamenti
+
+Il numero di versione ha la forma `MAJOR.MINOR.PATCH+N`:
+
+- la parte `MAJOR.MINOR.PATCH` sta nel file `VERSION` e si alza a mano quando serve;
+- `+N` è il numero progressivo di commit ed è automatico.
+
+Il hook `scripts/hooks/pre-commit` (attivato con `git config core.hooksPath scripts/hooks`)
+a ogni commit rigenera `js/version.js` e aggiorna il nome cache in `sw.js`, poi li
+aggiunge al commit. Così **non serve più bumpare `CACHE` a mano**: ogni commit
+produce un nome cache nuovo e il service worker si reinstalla servendo i file
+aggiornati.
+
+La versione corrente è mostrata in fondo alle **Impostazioni**; toccandola l'app
+forza il controllo aggiornamenti del service worker e ricarica.
 
 ## Sincronizzare i dati tra più dispositivi
 
@@ -136,9 +161,9 @@ data dell'ultimo salvataggio cloud è mostrata nel pannello di sincronizzazione.
 ### 2. Collega l'app a quel progetto
 
 Apri `js/sync.js` e sostituisci i valori segnaposto `YOUR_...` in `firebaseConfig`
-con quelli copiati. Ogni volta che modifichi un file elencato in `ASSETS` dentro
-`sw.js`, aumenta `CACHE` (es. `flexalot-v14` → `v15`) e ricarica i file sul repo,
-altrimenti il service worker continua a servire la versione vecchia.
+con quelli copiati. Il nome cache in `sw.js` viene aggiornato automaticamente dal
+hook di pre-commit (vedi "Versione e aggiornamenti"), quindi non serve toccarlo a
+mano quando modifichi un file in `ASSETS`.
 
 ### 3. Attiva la sincronizzazione
 

@@ -1,0 +1,40 @@
+#!/bin/sh
+# Stampa versione + numero di build automatici in js/version.js e nel nome cache di
+# sw.js, poi li aggiunge al commit in corso. Ogni commit produce cosi' una versione
+# tracciabile e il service worker si aggiorna sempre (nuovo nome cache => reinstalla).
+#
+# Attivare una volta sola dopo il clone:
+#   git config core.hooksPath scripts/hooks
+#
+# La parte "umana" della versione (MAJOR.MINOR.PATCH) sta nel file VERSION e si
+# alza a mano; il "+N" e' il numero di commit ed e' automatico.
+
+set -e
+
+root=$(git rev-parse --show-toplevel)
+cd "$root"
+
+base=$(head -n 1 VERSION 2>/dev/null | tr -d ' \t\r\n')
+[ -n "$base" ] || base='0.0.0'
+
+# Commit gia' presenti + 1: questo commit non e' ancora contato da rev-list.
+count=$(git rev-list --count HEAD 2>/dev/null || echo 0)
+build=$((count + 1))
+date=$(date +%Y-%m-%d)
+version="$base+$build"
+
+cat > js/version.js <<EOF
+// Generato automaticamente dal hook scripts/hooks/pre-commit - non modificare a mano.
+// 'self' esiste sia nella finestra sia nel service worker.
+self.APP_VERSION    = '$version';
+self.APP_BUILD_DATE = '$date';
+EOF
+
+# Il nome cache deve cambiare a ogni build, altrimenti il SW continua a servire i
+# file vecchi (vedi activate/install in sw.js).
+sed "s/^const CACHE = .*/const CACHE = 'flexalot-$build';/" sw.js > sw.js.tmp
+mv sw.js.tmp sw.js
+
+git add js/version.js sw.js
+
+printf 'FlexAlot: versione %s (build %s)\n' "$version" "$build"
