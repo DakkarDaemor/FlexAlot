@@ -424,7 +424,9 @@ body {
   opacity: 0.55;
 }
 
-.day-cell.today {
+/* La "cornice" segue il giorno toccato; il pallino (vedi .today .day-num) resta
+   sempre sull'oggi. */
+.day-cell.selected {
   border-color: var(--primary);
 }
 

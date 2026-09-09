@@ -9,7 +9,8 @@
   const state = {
     year: now.getFullYear(),
     month: now.getMonth() + 1,
-    view: 'calendar'
+    view: 'calendar',
+    selected: null   // giorno con la "cornice" — impostato al giorno corrente in init()
   };
 
   // ── Parametri del contratto (da Impostazioni) ─────────────────────────────
@@ -167,6 +168,15 @@
     }
   }
 
+  // Sposta subito la "cornice" sul giorno toccato (il pallino resta sull'oggi).
+  function selectCell(key, cell) {
+    if (state.selected === key) return;
+    state.selected = key;
+    const grid = document.getElementById('days-grid');
+    grid.querySelectorAll('.day-cell.selected').forEach(c => c.classList.remove('selected'));
+    cell.classList.add('selected');
+  }
+
   function renderCalendar() {
     const { year: y, month: m } = state;
     renderWeekdayHeaders();
@@ -205,6 +215,7 @@
         if (isFut) cls.push('future');
       }
       if (isToday(y,m,d)) cls.push('today');
+      if (state.selected === key) cls.push('selected');
       cell.className = cls.join(' ');
 
       // Day number
@@ -246,9 +257,9 @@
           });
           cell.appendChild(wrap);
         }
-        cell.addEventListener('click', () => openModal(key, y, m, d, false));
+        cell.addEventListener('click', () => { selectCell(key, cell); openModal(key, y, m, d, false); });
       } else {
-        cell.addEventListener('click', () => openModal(key, y, m, d, true));
+        cell.addEventListener('click', () => { selectCell(key, cell); openModal(key, y, m, d, true); });
       }
 
       grid.appendChild(cell);
@@ -771,6 +782,9 @@
   function init() {
     applyConfig();
     autoClose();
+
+    // All'avvio la cornice sta sull'oggi; poi segue i tap.
+    state.selected = ds(now.getFullYear(), now.getMonth() + 1, now.getDate());
 
     document.getElementById('prev-month').addEventListener('click', () => {
       if (--state.month < 1) { state.month = 12; state.year--; }
