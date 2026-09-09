@@ -183,8 +183,11 @@
         </select>
       </div>
       <div class="field">
-        <label for="set-patronDate">Festa del patrono (GG/MM, opzionale)</label>
-        <input type="text" id="set-patronDate" class="field-input" placeholder="es. 25/04" inputmode="numeric" maxlength="5" autocomplete="off">
+        <label for="set-patronDay">Festa del patrono (opzionale)</label>
+        <div class="patron-row">
+          <select id="set-patronDay" class="field-input" aria-label="Giorno"></select>
+          <select id="set-patronMonth" class="field-input" aria-label="Mese"></select>
+        </div>
         <p class="field-hint" id="patron-hint"></p>
       </div>
       <div class="field">

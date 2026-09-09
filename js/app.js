@@ -604,48 +604,41 @@
 
   // ── Impostazioni ───────────────────────────────────────────────────────────
 
-  function patronToDisplay(mmdd) {
-    return /^\d{2}-\d{2}$/.test(mmdd || '') ? `${mmdd.slice(3,5)}/${mmdd.slice(0,2)}` : '';
+  // Festa del patrono: due menu a tendina (giorno / mese) — niente tastiera su
+  // mobile, impossibile digitare un formato sbagliato. Valore salvato: 'MM-DD'.
+
+  function fillPatronSelects() {
+    const day = document.getElementById('set-patronDay');
+    const mon = document.getElementById('set-patronMonth');
+    if (day.options.length && mon.options.length) return;   // già popolati
+    day.innerHTML = '<option value="">giorno</option>';
+    for (let d = 1; d <= 31; d++) day.add(new Option(d, d));
+    mon.innerHTML = '<option value="">mese</option>';
+    MONTHS.forEach((name, i) => mon.add(new Option(name, i + 1)));
   }
 
-  // Tollerante: sulle tastiere numeriche mobile lo "/" spesso non c'è, quindi
-  // accettiamo qualunque separatore (o nessuno): "25/04", "25.4", "2504", "254"…
-  function patronFromDisplay(str) {
-    const d = (str || '').replace(/\D/g, '');
-    if (d.length < 2 || d.length > 4) return '';
-    const splits = d.length === 2 ? [[d.slice(0, 1), d.slice(1)]]
-                 : d.length === 3 ? [[d.slice(0, 2), d.slice(2)], [d.slice(0, 1), d.slice(1)]]
-                 :                   [[d.slice(0, 2), d.slice(2)]];
-    for (const [ds, ms] of splits) {
-      const dd = +ds, mm = +ms;
-      if (mm >= 1 && mm <= 12 && dd >= 1 && dd <= 31) return `${pad(mm)}-${pad(dd)}`;
-    }
-    return '';
+  function patronSelectsToValue() {
+    const d = +document.getElementById('set-patronDay').value;
+    const m = +document.getElementById('set-patronMonth').value;
+    return (d >= 1 && d <= 31 && m >= 1 && m <= 12) ? `${pad(m)}-${pad(d)}` : '';
   }
 
-  // Man mano che si digita: solo cifre, "/" inserito da solo dopo il giorno.
-  function formatPatronInput(el) {
-    let d = el.value.replace(/\D/g, '').slice(0, 4);
-    el.value = d.length > 2 ? `${d.slice(0, 2)}/${d.slice(2)}` : d;
+  function loadPatronSelects(mmdd) {
+    fillPatronSelects();
+    const ok = /^\d{2}-\d{2}$/.test(mmdd || '');
+    document.getElementById('set-patronMonth').value = ok ? String(+mmdd.slice(0, 2)) : '';
+    document.getElementById('set-patronDay').value   = ok ? String(+mmdd.slice(3, 5)) : '';
+    updatePatronHint();
   }
 
   function updatePatronHint() {
     const hint = document.getElementById('patron-hint');
-    const raw  = document.getElementById('set-patronDate').value.trim();
-    if (!raw) {
-      hint.textContent = 'Lascia vuoto se non applicabile.';
-      hint.classList.remove('hint-err');
-      return;
-    }
-    const mmdd = patronFromDisplay(raw);
-    if (!mmdd) {
-      hint.textContent = 'Formato non valido: usa GG/MM (es. 25/04).';
-      hint.classList.add('hint-err');
-      return;
-    }
-    const [mm, dd] = mmdd.split('-').map(Number);
-    hint.textContent = `→ ${dd} ${MONTHS[mm - 1].toLowerCase()}`;
+    const d = +document.getElementById('set-patronDay').value;
+    const m = +document.getElementById('set-patronMonth').value;
     hint.classList.remove('hint-err');
+    if (!d && !m) { hint.textContent = 'Lascia su “giorno / mese” se non applicabile.'; return; }
+    if (!d || !m) { hint.textContent = 'Scegli sia il giorno sia il mese.'; hint.classList.add('hint-err'); return; }
+    hint.textContent = `→ ${d} ${MONTHS[m - 1].toLowerCase()}`;
   }
 
   function applyConfig() {
@@ -661,9 +654,8 @@
     document.getElementById('set-weekStart').value     = String(c.weekStart);
     document.getElementById('set-defaultFlexH').value  = c.defaultFlexH;
     document.getElementById('set-theme').value         = c.theme;
-    document.getElementById('set-patronDate').value    = patronToDisplay(c.patronDate);
     document.getElementById('set-patronName').value    = c.patronName;
-    updatePatronHint();
+    loadPatronSelects(c.patronDate);
     renderVersion();
     document.getElementById('settings-overlay').classList.add('open');
   }
@@ -746,7 +738,7 @@
       weekStart:     document.getElementById('set-weekStart').value === '0' ? 0 : 1,
       defaultFlexH:  num('set-defaultFlexH', 4, 0.5, 24),
       theme:         ['auto','light','dark'].includes(theme) ? theme : 'auto',
-      patronDate:    patronFromDisplay(document.getElementById('set-patronDate').value),
+      patronDate:    patronSelectsToValue(),
       patronName:    (document.getElementById('set-patronName').value || 'Patrono').trim().slice(0,40) || 'Patrono'
     });
     applyConfig();
@@ -881,10 +873,8 @@
     document.getElementById('set-save').addEventListener('click', saveSettings);
     document.getElementById('set-reset').addEventListener('click', resetSettings);
     document.getElementById('settings-version').addEventListener('click', checkForUpdate);
-    document.getElementById('set-patronDate').addEventListener('input', e => {
-      formatPatronInput(e.target);
-      updatePatronHint();
-    });
+    document.getElementById('set-patronDay').addEventListener('change', updatePatronHint);
+    document.getElementById('set-patronMonth').addEventListener('change', updatePatronHint);
     document.getElementById('settings-overlay').addEventListener('click', e => {
       if (e.target.id === 'settings-overlay') closeSettings();
     });

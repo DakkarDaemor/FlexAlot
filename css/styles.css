@@ -744,6 +744,9 @@ body {
   min-height: 1em;
 }
 .field-hint.hint-err { color: var(--danger); }
+
+.patron-row { display: flex; gap: 8px; }
+.patron-row .field-input { flex: 1; min-width: 0; }
 select.field-input {
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath fill='%2394a3b8' d='M1 1l5 5 5-5'/%3E%3C/svg%3E");
   background-repeat: no-repeat;
