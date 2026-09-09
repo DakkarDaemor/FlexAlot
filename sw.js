@@ -1,4 +1,4 @@
-const CACHE = 'flexalot-13';
+const CACHE = 'flexalot-14';
 const ASSETS = [
   './',
   './index.html',
@@ -16,7 +16,14 @@ const ASSETS = [
 ];
 
 self.addEventListener('install', e => {
-  e.waitUntil(caches.open(CACHE).then(c => c.addAll(ASSETS)));
+  // `cache: 'reload'` = ignora la cache HTTP del browser: tutti gli asset di
+  // QUESTA build arrivano dalla rete, senza mischiare file di build diverse
+  // (era la causa di app "appesa" dopo un aggiornamento). addAll resta atomico.
+  e.waitUntil(
+    caches.open(CACHE).then(c =>
+      c.addAll(ASSETS.map(u => new Request(u, { cache: 'reload' })))
+    )
+  );
   self.skipWaiting();
 });
 

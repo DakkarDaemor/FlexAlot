@@ -607,24 +607,30 @@
   // Festa del patrono: due menu a tendina (giorno / mese) — niente tastiera su
   // mobile, impossibile digitare un formato sbagliato. Valore salvato: 'MM-DD'.
 
+  // Tutti tolleranti a elementi mancanti: durante un aggiornamento il SW può
+  // servire per un attimo un index.html e un app.js di build diverse.
   function fillPatronSelects() {
     const day = document.getElementById('set-patronDay');
     const mon = document.getElementById('set-patronMonth');
-    if (day.options.length && mon.options.length) return;   // già popolati
+    if (!day || !mon) return false;
+    if (day.options.length && mon.options.length) return true;   // già popolati
     day.innerHTML = '<option value="">giorno</option>';
     for (let d = 1; d <= 31; d++) day.add(new Option(d, d));
     mon.innerHTML = '<option value="">mese</option>';
     MONTHS.forEach((name, i) => mon.add(new Option(name, i + 1)));
+    return true;
   }
 
   function patronSelectsToValue() {
-    const d = +document.getElementById('set-patronDay').value;
-    const m = +document.getElementById('set-patronMonth').value;
+    const dEl = document.getElementById('set-patronDay');
+    const mEl = document.getElementById('set-patronMonth');
+    const d = dEl ? +dEl.value : 0;
+    const m = mEl ? +mEl.value : 0;
     return (d >= 1 && d <= 31 && m >= 1 && m <= 12) ? `${pad(m)}-${pad(d)}` : '';
   }
 
   function loadPatronSelects(mmdd) {
-    fillPatronSelects();
+    if (!fillPatronSelects()) return;
     const ok = /^\d{2}-\d{2}$/.test(mmdd || '');
     document.getElementById('set-patronMonth').value = ok ? String(+mmdd.slice(0, 2)) : '';
     document.getElementById('set-patronDay').value   = ok ? String(+mmdd.slice(3, 5)) : '';
@@ -633,8 +639,10 @@
 
   function updatePatronHint() {
     const hint = document.getElementById('patron-hint');
-    const d = +document.getElementById('set-patronDay').value;
-    const m = +document.getElementById('set-patronMonth').value;
+    const dEl  = document.getElementById('set-patronDay');
+    const mEl  = document.getElementById('set-patronMonth');
+    if (!hint || !dEl || !mEl) return;
+    const d = +dEl.value, m = +mEl.value;
     hint.classList.remove('hint-err');
     if (!d && !m) { hint.textContent = 'Lascia su “giorno / mese” se non applicabile.'; return; }
     if (!d || !m) { hint.textContent = 'Scegli sia il giorno sia il mese.'; hint.classList.add('hint-err'); return; }
@@ -813,6 +821,18 @@
     // All'avvio la cornice sta sull'oggi; poi segue i tap.
     state.selected = ds(now.getFullYear(), now.getMonth() + 1, now.getDate());
 
+    // Prima le cose che DEVONO andare comunque: disegna il calendario e
+    // (ri)registra il service worker, così un aggiornamento futuro può sempre
+    // rimettere a posto anche se il resto del cablaggio fallisce.
+    renderCalendar();
+    if ('serviceWorker' in navigator)
+      navigator.serviceWorker.register('sw.js').catch(() => {});
+
+    // Il resto è il cablaggio dell'interfaccia. Se durante un aggiornamento il
+    // SW serve per un attimo HTML e JS di build diverse, un elemento può
+    // mancare: qui si logga e si prosegue invece di lasciare l'app "appesa".
+    try {
+
     document.getElementById('prev-month').addEventListener('click', () => {
       if (--state.month < 1) { state.month = 12; state.year--; }
       renderCalendar();
@@ -873,8 +893,8 @@
     document.getElementById('set-save').addEventListener('click', saveSettings);
     document.getElementById('set-reset').addEventListener('click', resetSettings);
     document.getElementById('settings-version').addEventListener('click', checkForUpdate);
-    document.getElementById('set-patronDay').addEventListener('change', updatePatronHint);
-    document.getElementById('set-patronMonth').addEventListener('change', updatePatronHint);
+    document.getElementById('set-patronDay')?.addEventListener('change', updatePatronHint);
+    document.getElementById('set-patronMonth')?.addEventListener('change', updatePatronHint);
     document.getElementById('settings-overlay').addEventListener('click', e => {
       if (e.target.id === 'settings-overlay') closeSettings();
     });
@@ -886,10 +906,10 @@
       if (e.touches.length > 1) e.preventDefault();
     }, { passive: false });
 
-    if ('serviceWorker' in navigator)
-      navigator.serviceWorker.register('sw.js').catch(() => {});
+    } catch (e) {
+      console.error('FlexAlot: cablaggio UI incompleto (build miste?)', e);
+    }
 
-    renderCalendar();
     syncBootstrap();
   }
 
