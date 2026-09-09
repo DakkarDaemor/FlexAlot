@@ -461,6 +461,14 @@ body {
   white-space: nowrap;
 }
 
+.badge-h {
+  margin-left: 3px;
+  font-weight: 600;
+  font-size: 0.9em;
+  text-transform: lowercase;
+  opacity: 0.7;
+}
+
 .b-office   { background: var(--b-office);   color: var(--text2); }
 .b-flex     { background: var(--b-flex);     color: var(--flex); }
 .b-rol      { background: var(--b-rol);      color: var(--rol); }

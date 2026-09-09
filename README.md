@@ -4,7 +4,7 @@ PWA mobile-first per tenere traccia delle ore di ufficio e smart working mese pe
 
 ## Funzionalità
 
-- **Calendario mensile** — visualizza ogni giorno lavorativo con il relativo tipo (ufficio, flex, ferie, festivo, malattia, congedo)
+- **Calendario mensile** — visualizza ogni giorno lavorativo con il relativo tipo (ufficio, flex, ferie, festivo, malattia, congedo) e, in piccolo sul badge, le ore di flex e ROL
 - **Smart working (Flex)** — registra le ore lavorate da remoto con step da 0,5h; il default è 4h la prima volta, poi ricorda l'ultimo valore usato
 - **ROL** — tiene conto delle ore di permesso orario
 - **Assenze** — ferie, festività aziendali, malattia e congedo, distinte dai giorni lavorativi

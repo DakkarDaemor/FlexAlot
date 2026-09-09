@@ -217,22 +217,31 @@
         const dd   = data.days[key];
         const type = dd ? dd.type : 'unset';
         const rol  = dd ? (parseFloat(dd.rol)||0) : 0;
+        const fh   = dd && dd.flexH != null ? parseFloat(dd.flexH)
+                   : (type === 'flex' ? Math.max(0, workH() - rol) : 0);
 
+        // [testo, classe, ore] — le ore (piccole) compaiono solo per flex e ROL
         const badges = [];
-        if (type === 'flex')     badges.push(['Flex',  'flex']);
+        if (type === 'flex')     badges.push(['Flex',  'flex', fh > 0 ? formatH(fh) : '']);
         if (type === 'ferie')    badges.push(['Ferie', 'ferie']);
         if (type === 'festivo')  badges.push(['Fest',  'festivo']);
         if (type === 'malattia') badges.push(['Mal',   'malattia']);
         if (type === 'congedo')  badges.push(['Cong',  'congedo']);
-        if (rol  > 0)            badges.push(['ROL',   'rol']);
+        if (rol  > 0)            badges.push(['ROL',   'rol', formatH(rol)]);
 
         if (badges.length > 0) {
           const wrap = document.createElement('div');
           wrap.className = 'day-badges';
-          badges.forEach(([text, cls]) => {
+          badges.forEach(([text, cls, hrs]) => {
             const b = document.createElement('div');
             b.className = `day-badge b-${cls}`;
             b.textContent = text;
+            if (hrs) {
+              const h = document.createElement('span');
+              h.className = 'badge-h';
+              h.textContent = hrs;
+              b.appendChild(h);
+            }
             wrap.appendChild(b);
           });
           cell.appendChild(wrap);
