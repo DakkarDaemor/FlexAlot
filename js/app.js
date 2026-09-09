@@ -654,8 +654,8 @@
   function renderVersion() {
     const el = document.getElementById('settings-version');
     const v  = self.APP_VERSION || 'dev';
-    const dt = self.APP_BUILD_DATE ? ` · ${self.APP_BUILD_DATE}` : '';
-    el.textContent = `FlexAlot ${v}${dt}`;
+    const dt = self.APP_BUILD_DATE ? ` (${self.APP_BUILD_DATE})` : '';
+    el.textContent = `Versione ${v}${dt} · tocca per aggiornare`;
   }
 
   // Tocca la versione per forzare il controllo: aggiorna il service worker (che

@@ -1,4 +1,4 @@
-const CACHE = 'flexalot-8';
+const CACHE = 'flexalot-9';
 const ASSETS = [
   './',
   './index.html',
